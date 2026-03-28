@@ -43,7 +43,9 @@ export class WebAdapter extends WorldAdapter {
   }
 
   async execute(action, brain) {
-    switch (action.type) {
+    const type = action.type || (action.query ? 'search_web' : (action.url ? 'read_page' : 'unknown'));
+
+    switch (type) {
       case 'search_web': {
         console.log(`   🔍 Searching: "${action.query}"`);
         brain.logActivity('web_search', `Searching: "${action.query}"`);
