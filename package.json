@@ -1,0 +1,16 @@
+{
+  "name": "evonite",
+  "version": "1.0.0",
+  "description": "An AI infant agent that grows its own identity from a blank slate",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dashboard": "node src/dashboard/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "mongodb": "^7.1.1"
+  }
+}
