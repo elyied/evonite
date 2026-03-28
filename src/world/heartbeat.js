@@ -78,18 +78,21 @@ export class Heartbeat {
                 }
               } else if (action.type === 'message_human') {
                 // Agent wants to proactively reach out to the human
-                console.log(`   💬 Agent wants to say: "${(action.text || '').slice(0, 80)}"`);
+                const msgText = action.text || action.message || action.content || '';
+                if (!msgText) continue;
+
+                console.log(`   💬 Agent wants to say: "${msgText.slice(0, 80)}"`);
                 this.pendingMessages.push({
-                  text: action.text,
+                  text: msgText,
                   reason: action.reason || null,
                   timestamp: new Date().toISOString(),
                 });
                 this.brain.memory.record({
-                  content: `I reached out to the human: "${(action.text || '').slice(0, 150)}"`,
+                  content: `I reached out to the human: "${msgText.slice(0, 150)}"`,
                   tags: ['initiative', 'message_human'],
                   significance: 0.7,
                 });
-                this.brain.logActivity('message_human', (action.text || '').slice(0, 100));
+                this.brain.logActivity('message_human', msgText.slice(0, 100));
               } else {
                 await adapter.execute(action, this.brain);
               }
