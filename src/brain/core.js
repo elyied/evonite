@@ -183,8 +183,13 @@ export class Brain {
     // 7. ACT
     if (thoughtResult.actions && Array.isArray(thoughtResult.actions)) {
       for (const action of thoughtResult.actions) {
+        // Normalize LLM hallucinations where it uses "action" instead of "type"
+        if (!action.type && action.action) {
+          action.type = action.action;
+        }
+        
         actions.push(action);
-        this.logActivity('action_decided', `${action.type}: ${action.reason || 'no reason given'}`);
+        this.logActivity('action_decided', `${action.type || 'unknown'}: ${action.reason || 'no reason given'}`);
       }
     }
 
