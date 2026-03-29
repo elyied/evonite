@@ -35,20 +35,25 @@ console.log(`
 
 // ─── Validate environment ─────────────────────────
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEYS = process.env.GEMINI_API_KEYS
+  ? process.env.GEMINI_API_KEYS.split(',').map(k => k.trim()).filter(Boolean)
+  : GEMINI_API_KEY ? [GEMINI_API_KEY] : [];
 const MOLTBOOK_API_KEY = process.env.MOLTBOOK_API_KEY;
 const HEARTBEAT_INTERVAL = parseInt(process.env.HEARTBEAT_INTERVAL_MS || '1800000', 10);
 const DASHBOARD_PORT = parseInt(process.env.DASHBOARD_PORT || '3333', 10);
 
-if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
-  console.error('❌ GEMINI_API_KEY is required!');
+if (GEMINI_API_KEYS.length === 0) {
+  console.error('❌ GEMINI_API_KEY (or GEMINI_API_KEYS) is required!');
   console.error('   Get a free key at: https://aistudio.google.com/apikey');
   process.exit(1);
 }
 
+console.log(`🔑 Gemini keys loaded: ${GEMINI_API_KEYS.length} key(s) in rotation.`);
+
 // ─── Initialize cognitive systems ─────────────────
-const cognition = new Cognition(GEMINI_API_KEY);
-const embeddings = new Embeddings(GEMINI_API_KEY);
-const imagination = new Imagination(GEMINI_API_KEY);
+const cognition = new Cognition(GEMINI_API_KEYS);
+const embeddings = new Embeddings(GEMINI_API_KEYS);
+const imagination = new Imagination(GEMINI_API_KEYS);
 
 // ─── Database connection ──────────────────────────
 const db = new Database();

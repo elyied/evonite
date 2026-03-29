@@ -6,8 +6,12 @@
  * No credit card needed.
  */
 export class Cognition {
-  constructor(apiKey) {
-    this.apiKey = apiKey;
+  constructor(apiKeyOrKeys) {
+    // Accept either a single key string or an array of keys
+    this.apiKeys = Array.isArray(apiKeyOrKeys)
+      ? apiKeyOrKeys.filter(Boolean)
+      : [apiKeyOrKeys].filter(Boolean);
+    this.currentKeyIndex = 0;
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
     // Models to try in order — if one hits quota, try the next
     this.models = [
@@ -16,6 +20,14 @@ export class Cognition {
       'gemini-3-flash-preview',
     ];
     this.currentModelIndex = 0;
+  }
+
+  get apiKey() {
+    return this.apiKeys[this.currentKeyIndex];
+  }
+
+  _nextKey() {
+    this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
   }
 
   get model() {
@@ -28,11 +40,16 @@ export class Cognition {
    * Automatically tries fallback models if one hits rate limits.
    */
   async think(prompt, { temperature = 0.9, maxTokens = 2048 } = {}) {
-    for (let attempt = 0; attempt < this.models.length; attempt++) {
-      const modelName = this.models[(this.currentModelIndex + attempt) % this.models.length];
+    const totalAttempts = this.models.length * this.apiKeys.length;
+
+    for (let attempt = 0; attempt < totalAttempts; attempt++) {
+      const modelName = this.models[this.currentModelIndex];
+      const keyIndex = this.currentKeyIndex;
+      const apiKey = this.apiKeys[keyIndex];
+
       try {
-        const url = `${this.baseUrl}/models/${modelName}:generateContent?key=${this.apiKey}`;
-        
+        const url = `${this.baseUrl}/models/${modelName}:generateContent?key=${apiKey}`;
+
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -46,8 +63,18 @@ export class Cognition {
         });
 
         if (response.status === 429) {
-          console.log(`[Cognition] Model ${modelName} hit rate limit, trying next...`);
-          continue; // Try next model
+          // Try next key first, then rotate model if all keys exhausted
+          const nextKeyIndex = (keyIndex + 1) % this.apiKeys.length;
+          if (nextKeyIndex !== 0) {
+            console.log(`[Cognition] Key ${keyIndex + 1} rate limited, trying key ${nextKeyIndex + 1}...`);
+            this._nextKey();
+          } else {
+            // All keys tried for this model — go to next model
+            this.currentModelIndex = (this.currentModelIndex + 1) % this.models.length;
+            this.currentKeyIndex = 0;
+            console.log(`[Cognition] All keys exhausted for ${modelName}, switching to ${this.models[this.currentModelIndex]}...`);
+          }
+          continue;
         }
 
         if (!response.ok) {
@@ -57,22 +84,19 @@ export class Cognition {
 
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        
-        if (text) {
-          // Remember which model worked
-          this.currentModelIndex = (this.currentModelIndex + attempt) % this.models.length;
-          if (attempt > 0) {
-            console.log(`[Cognition] Using model: ${modelName}`);
-          }
+
+        if (text && attempt > 0) {
+          console.log(`[Cognition] Using model: ${modelName} (key ${keyIndex + 1}/${this.apiKeys.length})`);
         }
-        
+
         return text;
       } catch (error) {
-        if (attempt === this.models.length - 1) {
-          console.error('[Cognition] All models failed:', error.message);
+        if (attempt === totalAttempts - 1) {
+          console.error('[Cognition] All models and keys failed:', error.message);
           return null;
         }
         console.log(`[Cognition] Model ${modelName} failed, trying next...`);
+        this._nextKey();
       }
     }
     return null;

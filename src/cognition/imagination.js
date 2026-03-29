@@ -13,57 +13,71 @@ const IMAGES_DIR = path.join(DATA_DIR, 'images');
  * from the agent's descriptions. The agent decides what to imagine.
  */
 export class Imagination {
-  constructor(apiKey) {
-    this.apiKey = apiKey;
-    this.model = 'gemini-2.0-flash-exp'; // supports image generation
+  constructor(apiKeyOrKeys) {
+    this.apiKeys = Array.isArray(apiKeyOrKeys)
+      ? apiKeyOrKeys.filter(Boolean)
+      : [apiKeyOrKeys].filter(Boolean);
+    this.currentKeyIndex = 0;
+    this.model = 'gemini-2.0-flash-exp';
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
   }
+
+  get apiKey() { return this.apiKeys[this.currentKeyIndex]; }
 
   /**
    * Generate an image from description. Returns the saved filename or null.
    */
   async imagine(description) {
-    try {
-      const url = `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: `Create an image: ${description}` }],
-          }],
-          generationConfig: {
-            responseModalities: ['TEXT', 'IMAGE'],
-          },
-        }),
-      });
+    for (let attempt = 0; attempt < this.apiKeys.length; attempt++) {
+      const apiKey = this.apiKeys[(this.currentKeyIndex + attempt) % this.apiKeys.length];
+      try {
+        const url = `${this.baseUrl}/models/${this.model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: `Create an image: ${description}` }],
+            }],
+            generationConfig: {
+              responseModalities: ['TEXT', 'IMAGE'],
+            },
+          }),
+        });
 
-      if (!response.ok) {
-        console.log(`[Imagination] API error: ${response.status}`);
-        return null;
-      }
-
-      const data = await response.json();
-      const parts = data.candidates?.[0]?.content?.parts || [];
-
-      for (const part of parts) {
-        if (part.inlineData) {
-          const filename = `imagine_${Date.now()}.png`;
-          const filepath = path.join(IMAGES_DIR, filename);
-          const buffer = Buffer.from(part.inlineData.data, 'base64');
-          fs.writeFileSync(filepath, buffer);
-          console.log(`   🎨 Image saved: ${filename}`);
-          return filename;
+        if (response.status === 429) {
+          console.log(`[Imagination] Key ${attempt + 1} rate limited, trying next...`);
+          continue;
         }
-      }
 
-      console.log('[Imagination] No image data in response');
-      return null;
-    } catch (e) {
-      console.log(`[Imagination] Error: ${e.message}`);
-      return null;
+        if (!response.ok) {
+          console.log(`[Imagination] API error: ${response.status}`);
+          return null;
+        }
+
+        const data = await response.json();
+        const parts = data.candidates?.[0]?.content?.parts || [];
+
+        for (const part of parts) {
+          if (part.inlineData) {
+            const filename = `imagine_${Date.now()}.png`;
+            const filepath = path.join(IMAGES_DIR, filename);
+            const buffer = Buffer.from(part.inlineData.data, 'base64');
+            fs.writeFileSync(filepath, buffer);
+            console.log(`   🎨 Image saved: ${filename}`);
+            return filename;
+          }
+        }
+
+        console.log('[Imagination] No image data in response');
+        return null;
+      } catch (e) {
+        console.log(`[Imagination] Error: ${e.message}`);
+        if (attempt === this.apiKeys.length - 1) return null;
+      }
     }
+    return null;
   }
 
   /**

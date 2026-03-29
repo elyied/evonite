@@ -5,35 +5,45 @@
  * The agent doesn't know this exists — it just has better recall.
  */
 export class Embeddings {
-  constructor(apiKey) {
-    this.apiKey = apiKey;
+  constructor(apiKeyOrKeys) {
+    this.apiKeys = Array.isArray(apiKeyOrKeys)
+      ? apiKeyOrKeys.filter(Boolean)
+      : [apiKeyOrKeys].filter(Boolean);
+    this.currentKeyIndex = 0;
     this.model = 'text-embedding-004';
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
   }
+
+  get apiKey() { return this.apiKeys[this.currentKeyIndex]; }
 
   /**
    * Embed a single text string into a vector.
    * Returns a float array, or null on failure.
    */
   async embed(text) {
-    try {
-      const url = `${this.baseUrl}/models/${this.model}:embedContent?key=${this.apiKey}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: `models/${this.model}`,
-          content: { parts: [{ text }] },
-        }),
-      });
+    for (let attempt = 0; attempt < this.apiKeys.length; attempt++) {
+      const apiKey = this.apiKeys[(this.currentKeyIndex + attempt) % this.apiKeys.length];
+      try {
+        const url = `${this.baseUrl}/models/${this.model}:embedContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: `models/${this.model}`,
+            content: { parts: [{ text }] },
+          }),
+        });
 
-      if (!response.ok) return null;
+        if (response.status === 429) continue; // try next key
+        if (!response.ok) return null;
 
-      const data = await response.json();
-      return data.embedding?.values || null;
-    } catch (e) {
-      return null;
+        const data = await response.json();
+        return data.embedding?.values || null;
+      } catch (e) {
+        if (attempt === this.apiKeys.length - 1) return null;
+      }
     }
+    return null;
   }
 
   /**
