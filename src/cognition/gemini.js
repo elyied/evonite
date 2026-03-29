@@ -43,9 +43,9 @@ export class Cognition {
     const totalAttempts = this.models.length * this.apiKeys.length;
 
     for (let attempt = 0; attempt < totalAttempts; attempt++) {
-      const modelName = this.models[this.currentModelIndex];
-      const keyIndex = this.currentKeyIndex;
-      const apiKey = this.apiKeys[keyIndex];
+      // Cycle through models first, then keys — stateless, no index mutation needed
+      const modelName = this.models[attempt % this.models.length];
+      const apiKey = this.apiKeys[Math.floor(attempt / this.models.length) % this.apiKeys.length];
 
       try {
         const url = `${this.baseUrl}/models/${modelName}:generateContent?key=${apiKey}`;
@@ -63,17 +63,7 @@ export class Cognition {
         });
 
         if (response.status === 429) {
-          // Try next key first, then rotate model if all keys exhausted
-          const nextKeyIndex = (keyIndex + 1) % this.apiKeys.length;
-          if (nextKeyIndex !== 0) {
-            console.log(`[Cognition] Key ${keyIndex + 1} rate limited, trying key ${nextKeyIndex + 1}...`);
-            this._nextKey();
-          } else {
-            // All keys tried for this model — go to next model
-            this.currentModelIndex = (this.currentModelIndex + 1) % this.models.length;
-            this.currentKeyIndex = 0;
-            console.log(`[Cognition] All keys exhausted for ${modelName}, switching to ${this.models[this.currentModelIndex]}...`);
-          }
+          console.log(`[Cognition] ${modelName} rate limited, trying next...`);
           continue;
         }
 
@@ -86,7 +76,7 @@ export class Cognition {
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
         if (text && attempt > 0) {
-          console.log(`[Cognition] Using model: ${modelName} (key ${keyIndex + 1}/${this.apiKeys.length})`);
+          console.log(`[Cognition] Using model: ${modelName}`);
         }
 
         return text;
@@ -95,8 +85,7 @@ export class Cognition {
           console.error('[Cognition] All models and keys failed:', error.message);
           return null;
         }
-        console.log(`[Cognition] Model ${modelName} failed, trying next...`);
-        this._nextKey();
+        console.log(`[Cognition] ${modelName} failed, trying next...`);
       }
     }
     return null;
