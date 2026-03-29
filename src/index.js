@@ -5,6 +5,7 @@ import { Embeddings } from './cognition/embeddings.js';
 import { Imagination } from './cognition/imagination.js';
 import { Heartbeat } from './world/heartbeat.js';
 import { MoltbookAdapter } from './world/adapters/moltbook-adapter.js';
+import { MastodonAdapter } from './world/adapters/mastodon-adapter.js';
 import { WebAdapter } from './world/adapters/web-adapter.js';
 import { startDashboard } from './dashboard/server.js';
 import { Database } from './db/mongo.js';
@@ -39,6 +40,8 @@ const GEMINI_API_KEYS = process.env.GEMINI_API_KEYS
   ? process.env.GEMINI_API_KEYS.split(',').map(k => k.trim()).filter(Boolean)
   : GEMINI_API_KEY ? [GEMINI_API_KEY] : [];
 const MOLTBOOK_API_KEY = process.env.MOLTBOOK_API_KEY;
+const MASTODON_INSTANCE_URL = process.env.MASTODON_INSTANCE_URL;
+const MASTODON_ACCESS_TOKEN = process.env.MASTODON_ACCESS_TOKEN;
 const HEARTBEAT_INTERVAL = parseInt(process.env.HEARTBEAT_INTERVAL_MS || '1800000', 10);
 const DASHBOARD_PORT = parseInt(process.env.DASHBOARD_PORT || '3333', 10);
 
@@ -83,6 +86,14 @@ const adapters = [];
 
 adapters.push(new MoltbookAdapter(MOLTBOOK_API_KEY || null));
 adapters.push(new WebAdapter());
+
+if (MASTODON_INSTANCE_URL && MASTODON_ACCESS_TOKEN) {
+  adapters.push(new MastodonAdapter(MASTODON_INSTANCE_URL, MASTODON_ACCESS_TOKEN));
+  console.log(`🐘 Mastodon connected: ${MASTODON_INSTANCE_URL}`);
+} else {
+  console.log('🐘 No MASTODON_ACCESS_TOKEN — Mastodon disconnected.');
+  console.log('   Set MASTODON_INSTANCE_URL and MASTODON_ACCESS_TOKEN to connect.');
+}
 
 if (!MOLTBOOK_API_KEY) {
   console.log('📋 No MOLTBOOK_API_KEY — social network disconnected (local mode).');
