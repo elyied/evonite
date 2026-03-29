@@ -93,6 +93,39 @@ export class Heartbeat {
                   significance: 0.7,
                 });
                 this.brain.logActivity('message_human', msgText.slice(0, 100));
+              } else if (action.type === 'change_identity') {
+                // Agent autonomously requested an identity change!
+                console.log(`\n   🪞 Metamorphosis triggered. Adopting new identity: ${action.new_name || '?'}`);
+                
+                const updates = {};
+                if (action.new_name) updates.name = action.new_name;
+
+                if (this.brain.imagination && action.avatar_prompt) {
+                  console.log(`   🎨 Imagining new physical form: "${action.avatar_prompt}"`);
+                  const filename = await this.brain.imagination.imagine(action.avatar_prompt);
+                  if (filename) {
+                    updates.avatarUrl = `/images/${filename}`;
+                  }
+                }
+
+                if (Object.keys(updates).length > 0) {
+                  this.brain.personality.evolve(updates);
+                  this.brain.memory.record({
+                    content: `I chose to evolve my identity ${action.new_name ? `to the name "${action.new_name}"` : ''} because: ${action.reason || 'I felt it was time.'}`,
+                    tags: ['identity', 'metamorphosis'],
+                    significance: 1.0,
+                  });
+                  this.brain.logActivity('metamorphosis', `New identity assumed: ${action.new_name || 'avatar update'}`);
+
+                  // Attempt to push the new identity out to the connected world!
+                  const pState = this.brain.personality.getState();
+                  if (adapter.updateIdentity) {
+                     await adapter.updateIdentity(
+                       pState.name, 
+                       pState.avatarUrl ? `https://evonite.onrender.com${pState.avatarUrl}` : null
+                     );
+                  }
+                }
               } else {
                 await adapter.execute(action, this.brain);
               }

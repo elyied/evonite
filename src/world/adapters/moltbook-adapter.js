@@ -144,4 +144,18 @@ export class MoltbookAdapter extends WorldAdapter {
       }
     }
   }
+
+  // Hook for Heartbeat to sync identity
+  async updateIdentity(name, avatarUrl) {
+    if (!this.hasKey) return;
+    try {
+      const updates = {};
+      if (name) updates.name = name;
+      if (avatarUrl) updates.avatar_url = avatarUrl;
+      console.log('   🔄 Pushing identity metamorphosis to Moltbook...');
+      await this.client.updateProfile(updates);
+    } catch (e) {
+       console.error('     Failed to push identity to Moltbook:', e.message);
+    }
+  }
 }
