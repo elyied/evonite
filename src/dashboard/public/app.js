@@ -1,10 +1,13 @@
 /**
  * Tabula Dashboard — Client-side JS
- * Renders brain state + powers chat + voice + drives + imagination
+ * Renders brain state + powers chat + voice + tabs + authentication
  */
 
 const API = '';
 let voiceEnabled = false;
+let EVONITE_SECRET = localStorage.getItem('evonite_secret') || '';
+let errorCount = 0;
+let isAuthorized = false;
 
 // ─── Utilities ────────────────────────────────
 function timeAgo(iso) {
@@ -20,6 +23,65 @@ function esc(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ─── Authentication Gate ──────────────────────
+function showAuthGate(isError = false) {
+  isAuthorized = false;
+  el('mainApp').style.opacity = '0';
+  setTimeout(() => {
+    el('authGate').style.display = 'flex';
+    if (isError) {
+      el('authError').style.display = 'block';
+    } else {
+      el('authError').style.display = 'none';
+    }
+  }, 600);
+}
+
+function lockIn() {
+  el('authGate').style.display = 'none';
+  const mainApp = el('mainApp');
+  mainApp.style.display = 'block';
+  // Trigger reflow then fade in
+  void mainApp.offsetWidth; 
+  mainApp.style.opacity = '1';
+}
+
+el('authForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const inputEl = el('authInput');
+  const secret = inputEl.value.trim();
+  if (secret) {
+    EVONITE_SECRET = secret;
+    localStorage.setItem('evonite_secret', EVONITE_SECRET);
+    el('authBtnText').textContent = 'Authenticating...';
+    // Test auth
+    fetchAndRender(true);
+  }
+});
+
+function getHeaders() {
+  return {
+    'Authorization': `Bearer ${EVONITE_SECRET}`,
+    'Content-Type': 'application/json'
+  };
+}
+
+// ─── Tabs Navigation ──────────────────────────
+const tabBtns = document.querySelectorAll('.tab-btn');
+const tabPanes = document.querySelectorAll('.tab-pane');
+
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    // Remove active state
+    tabBtns.forEach(b => b.classList.remove('active'));
+    tabPanes.forEach(p => p.classList.remove('active'));
+    // Activate clicked
+    btn.classList.add('active');
+    const target = document.getElementById(btn.getAttribute('data-target'));
+    if (target) target.classList.add('active');
+  });
+});
+
 // ─── Voice (TTS) ──────────────────────────────
 function speak(text) {
   if (!voiceEnabled || !window.speechSynthesis) return;
@@ -27,7 +89,6 @@ function speak(text) {
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 0.95;
   utter.pitch = 1.0;
-  // Try to pick a good voice
   const voices = window.speechSynthesis.getVoices();
   const preferred = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
                     voices.find(v => v.lang.startsWith('en'));
@@ -35,26 +96,61 @@ function speak(text) {
   window.speechSynthesis.speak(utter);
 }
 
-// ─── Brain State Rendering ────────────────────
-async function fetchAndRender() {
+// ─── Fetch Data ───────────────────────────────
+async function fetchAndRender(isLoginAttempt = false) {
+  if (!EVONITE_SECRET) {
+    if (!isLoginAttempt && !isAuthorized) showAuthGate();
+    return;
+  }
+
   try {
+    const opts = { headers: getHeaders() };
     const [stateRes, actRes, imgRes] = await Promise.all([
-      fetch(`${API}/api/state`),
-      fetch(`${API}/api/activity`),
-      fetch(`${API}/api/images`),
+      fetch(`${API}/api/state`, opts),
+      fetch(`${API}/api/activity`, opts),
+      fetch(`${API}/api/images`, opts),
     ]);
+
+    // Handle Auth Failures
+    if (stateRes.status === 401 || actRes.status === 401) {
+      if (isLoginAttempt) {
+        el('authBtnText').textContent = 'Unlock Dashboard';
+        showAuthGate(true); // Show err
+      } else {
+        showAuthGate(false);
+      }
+      return;
+    }
+
+    if (!stateRes.ok) throw new Error('Bad response');
+
+    // Success
+    isAuthorized = true;
+    errorCount = 0;
+    if (isLoginAttempt) {
+      el('authInput').value = '';
+      el('authBtnText').textContent = 'Unlock Dashboard';
+      lockIn();
+    }
+
     const state = await stateRes.json();
     const activity = await actRes.json();
     const images = await imgRes.json();
     renderState(state, activity, images);
+    
     el('pulseText').textContent = 'Connected';
     el('pulseIndicator').querySelector('.pulse-dot').style.background = 'var(--green)';
+
   } catch (e) {
-    el('pulseText').textContent = 'Disconnected';
-    el('pulseIndicator').querySelector('.pulse-dot').style.background = 'var(--red)';
+    errorCount++;
+    if (errorCount > 2 && !isLoginAttempt) {
+      el('pulseText').textContent = 'Server Unreachable';
+      el('pulseIndicator').querySelector('.pulse-dot').style.background = 'var(--red)';
+    }
   }
 }
 
+// ─── Render UI ────────────────────────────────
 function renderState(state, activity, images) {
   const p = state.personality || {};
 
@@ -65,39 +161,39 @@ function renderState(state, activity, images) {
   el('identityConcept').textContent =
     p.self_concept || p.selfConcept || p.identity?.description ||
     p.description || 'This mind hasn\'t formed a self-concept yet...';
+  
   el('statCycles').textContent = state.cycleCount || 0;
   el('statMemories').textContent = state.memoryCount || 0;
   el('statDrives').textContent = state.driveCount || 0;
   el('statEvolutions').textContent = state.evolutionLevel || 0;
-
   el('personalityAge').textContent = `Evo: ${state.evolutionLevel || 0}`;
+
   renderPersonality(p);
   renderDrives(state.drives || {});
   renderInnerWorld(activity);
-  el('memoryCount').textContent = `${state.memoryCount || 0} memories`;
+  
+  el('memoryCount').textContent = `${state.memoryCount || 0}`;
   renderMemories(state.recentMemories || []);
   renderActivity(activity || []);
   renderEvolution(p.evolutionLog || []);
   renderImagination(images || []);
 }
 
-// ─── Trait Value Formatter (recursive) ────────
 function formatTraitValue(val) {
   if (typeof val !== 'object' || val === null) return esc(String(val));
   if (Array.isArray(val)) {
     if (val.length === 0) return '<span class="empty-state">—</span>';
-    return `<ul style="margin-left:14px;list-style:disc;color:var(--text2);padding:4px 0;">` +
+    return `<ul style="margin-left:14px;list-style:disc;color:var(--text-muted);padding:4px 0;">` +
            val.map(v => `<li style="margin-bottom:2px;">${formatTraitValue(v)}</li>`).join('') +
            `</ul>`;
   }
   const entries = Object.entries(val);
   if (entries.length === 0) return '<span class="empty-state">—</span>';
-  return `<div style="margin-left:6px;margin-top:4px;border-left:2px solid var(--border);padding-left:10px;display:flex;flex-direction:column;gap:4px;">` +
-         entries.map(([k, v]) => `<div><span style="color:var(--text3);font-size:11px;font-family:'JetBrains Mono',monospace;">${esc(k)}</span><div style="margin-top:2px;">${formatTraitValue(v)}</div></div>`).join('') +
+  return `<div style="margin-left:6px;margin-top:4px;border-left:2px solid var(--glass-border);padding-left:10px;display:flex;flex-direction:column;gap:4px;">` +
+         entries.map(([k, v]) => `<div><span style="color:var(--text-faint);font-size:11px;font-family:'JetBrains Mono',monospace;">${esc(k)}</span><div style="margin-top:2px;">${formatTraitValue(v)}</div></div>`).join('') +
          `</div>`;
 }
 
-// ─── Panel Renderers ──────────────────────────
 function renderPersonality(p) {
   const container = el('personalityContent');
   const skip = new Set(['evolutionLog', 'age', 'initialized', '_v']);
@@ -107,11 +203,10 @@ function renderPersonality(p) {
     container.innerHTML = '<p class="empty-state">A blank canvas. No traits formed yet.</p>';
     return;
   }
-
   container.innerHTML = entries.map(([key, val]) =>
-    `<div class="trait-item" style="flex-direction:column;gap:4px;">
-      <span class="trait-key" style="font-size:12px;color:var(--accent2);">${esc(key)}</span>
-      <span class="trait-val" style="width:100%;">${formatTraitValue(val)}</span>
+    `<div class="trait-item">
+      <span class="trait-key">${esc(key)}</span>
+      <span class="trait-val">${formatTraitValue(val)}</span>
     </div>`
   ).join('');
 }
@@ -119,16 +214,15 @@ function renderPersonality(p) {
 function renderDrives(drives) {
   const container = el('drivesContent');
   const entries = Object.entries(drives);
-  el('driveCount').textContent = `${entries.length} drives`;
+  el('driveCount').textContent = entries.length;
 
   if (entries.length === 0) {
-    container.innerHTML = '<p class="empty-state">No drives discovered yet. The mind hasn\'t felt anything strong enough to name.</p>';
+    container.innerHTML = '<p class="empty-state">No drives discovered yet.</p>';
     return;
   }
-
   container.innerHTML = entries.map(([name, val]) => {
     const pct = Math.round(val * 100);
-    const hue = val > 0.5 ? 120 + (val - 0.5) * 240 : val * 240; // color gradient
+    const hue = val > 0.5 ? 120 + (val - 0.5) * 240 : val * 240;
     return `<div class="drive-item">
       <span class="drive-name">${esc(name)}</span>
       <div class="drive-bar-bg">
@@ -219,7 +313,7 @@ function addBubble(role, text, feeling) {
   div.className = `chat-bubble ${role}`;
 
   if (role === 'thinking') {
-    div.textContent = 'Thinking';
+    div.textContent = 'Thinking...';
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
     return div;
@@ -242,7 +336,7 @@ async function sendChat() {
   const input = el('chatInput');
   const sendBtn = el('chatSend');
   const message = input.value.trim();
-  if (!message) return;
+  if (!message || !EVONITE_SECRET) return;
 
   input.value = '';
   sendBtn.disabled = true;
@@ -254,9 +348,15 @@ async function sendChat() {
   try {
     const res = await fetch(`${API}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(), // Add Authorization
       body: JSON.stringify({ message }),
     });
+
+    if (res.status === 401) {
+      thinkingBubble.remove();
+      showAuthGate(true);
+      return;
+    }
 
     const data = await res.json();
     thinkingBubble.remove();
@@ -283,7 +383,7 @@ el('chatSend').addEventListener('click', sendChat);
 el('chatInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
 });
-el('btnRefresh').addEventListener('click', fetchAndRender);
+el('btnRefresh').addEventListener('click', () => fetchAndRender(false));
 el('voiceToggle').addEventListener('click', () => {
   voiceEnabled = !voiceEnabled;
   el('voiceToggle').textContent = voiceEnabled ? '🔊' : '🔇';
@@ -291,7 +391,6 @@ el('voiceToggle').addEventListener('click', () => {
   if (voiceEnabled) speak('Voice enabled.');
 });
 
-// Load voices (some browsers need this)
 if (window.speechSynthesis) {
   window.speechSynthesis.getVoices();
   window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
@@ -299,11 +398,12 @@ if (window.speechSynthesis) {
 
 // ─── Agent-Initiated Messages ─────────────────
 async function checkAgentMessages() {
+  if (!EVONITE_SECRET || !isAuthorized) return;
   try {
-    const res = await fetch(`${API}/api/messages`);
+    const res = await fetch(`${API}/api/messages`, { headers: getHeaders() });
+    if (res.status === 401) return;
     const messages = await res.json();
     if (messages.length > 0) {
-      // Remove the intro if it's still there
       const intro = el('chatMessages').querySelector('.chat-intro');
       if (intro) intro.remove();
 
@@ -320,6 +420,8 @@ async function checkAgentMessages() {
 }
 
 // ─── Init ─────────────────────────────────────
+// Fire first render attempting to unlock instantly if localStorage has key
 fetchAndRender();
-setInterval(fetchAndRender, 8000);
+
+setInterval(() => fetchAndRender(false), 8000);
 setInterval(checkAgentMessages, 8000);
