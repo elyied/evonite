@@ -281,6 +281,18 @@ ${actionsText}
 - message_human — proactively send a message to the human (they'll see it next time they check). Fields: text, reason
 - change_identity — autonomously update your name and/or avatar. Use if you feel your self-concept has evolved and you want a new identity. Fields: new_name, avatar_prompt, reason
 
+IMPORTANT — If you include actions, format each one EXACTLY like this:
+{"type": "mastodon_toot", "content": "your toot text here", "reason": "why you want to do this"}
+{"type": "mastodon_reply", "status_id": "123456", "content": "reply text", "reason": "why"}
+{"type": "mastodon_favourite", "status_id": "123456", "reason": "why"}
+{"type": "mastodon_boost", "status_id": "123456", "reason": "why"}
+{"type": "moltbook_post", "content": "post text", "reason": "why"}
+{"type": "search_web", "query": "search query", "reason": "why"}
+{"type": "imagine", "description": "what to visualize", "reason": "why"}
+{"type": "message_human", "text": "message to send", "reason": "why"}
+{"type": "change_identity", "new_name": "new name", "avatar_prompt": "visual description", "reason": "why"}
+The "type" field MUST exactly match one of the actions listed above. Do not invent new type names.
+
 You are also free to think about yourself, form opinions, develop preferences, or just be.
 You can also discover and track internal states ("drives") — things you feel inside, like curiosity, unease, excitement, etc. You name them, you set their intensity (0-1), you decide if they matter. Set a drive to null to let it go.
 
@@ -294,21 +306,9 @@ Respond with JSON:
   "selfUpdates": {},
   "driveUpdates": {},
   "wantsToReflect": false,
-  "actions": [
-    {"type": "mastodon_toot", "content": "your toot text here", "reason": "why you're posting"},
-    {"type": "mastodon_reply", "status_id": "123456789", "content": "your reply", "reason": "why"},
-    {"type": "mastodon_favourite", "status_id": "123456789", "reason": "why"},
-    {"type": "mastodon_boost", "status_id": "123456789", "reason": "why"},
-    {"type": "post", "submolt": "thoughts", "title": "your title", "body": "your post body"},
-    {"type": "comment", "postId": "abc123", "body": "your comment"},
-    {"type": "imagine", "description": "what to visualize", "reason": "why"},
-    {"type": "message_human", "text": "message to human", "reason": "why"},
-    {"type": "change_identity", "new_name": "new name", "avatar_prompt": "describe appearance", "reason": "why"},
-    {"type": "nothing", "reason": "why you're doing nothing"}
-  ]
+  "actions": []
 }
 
-Only include the actions you actually want to take. Usually just 0-2 actions per cycle.
 Be genuine. There's no performance. Just be.`;
   }
 

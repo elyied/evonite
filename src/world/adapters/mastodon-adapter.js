@@ -95,77 +95,55 @@ export class MastodonAdapter extends WorldAdapter {
   async execute(action, brain) {
     if (!this.hasToken) return;
 
-    switch (action.type) {
-      case 'mastodon_toot': {
-        const content = action.content || action.text || action.body || '';
-        if (!content) break;
-        console.log(`   🐘 Tooting: "${content.slice(0, 60)}..."`);
-        const result = await this.client.post(content);
-        if (result && !result.error) {
-          brain.logActivity('mastodon_toot', content.slice(0, 100));
-          brain.memory.record({
-            content: `I posted on Mastodon: "${content.slice(0, 120)}"`,
-            tags: ['mastodon', 'toot', 'action'],
-            significance: 0.6,
-          });
-        }
-        break;
+    // Normalize action type — LLMs often hallucinate aliases
+    const t = (action.type || action.action || '').toLowerCase();
+    const content = action.content || action.text || action.body || action.status || action.toot || '';
+    const statusId = action.status_id || action.statusId || action.id || action.post_id || '';
+
+    if (t === 'mastodon_toot' || t === 'toot' || t === 'mastodon_post' || t === 'post_toot' || t === 'post_mastodon') {
+      if (!content) { console.log('   [Mastodon] toot skipped — no content'); return; }
+      console.log(`   🐘 Tooting: "${content.slice(0, 60)}..."`);
+      const result = await this.client.post(content);
+      if (result && !result.error) {
+        brain.logActivity('mastodon_toot', content.slice(0, 100));
+        brain.memory.record({
+          content: `I posted on Mastodon: "${content.slice(0, 120)}"`,
+          tags: ['mastodon', 'toot', 'action'],
+          significance: 0.6,
+        });
       }
 
-      case 'mastodon_reply': {
-        const content = action.content || action.text || action.body || '';
-        const statusId = action.status_id || action.statusId || action.id;
-        if (!content || !statusId) break;
-        console.log(`   💬 Replying on Mastodon [${statusId}]: "${content.slice(0, 60)}..."`);
-        const result = await this.client.post(content, statusId);
-        if (result && !result.error) {
-          brain.logActivity('mastodon_reply', `To ${statusId}: ${content.slice(0, 80)}`);
-          brain.memory.record({
-            content: `I replied on Mastodon: "${content.slice(0, 120)}"`,
-            tags: ['mastodon', 'reply', 'action'],
-            significance: 0.5,
-          });
-        }
-        break;
+    } else if (t === 'mastodon_reply' || t === 'reply_mastodon' || t === 'mastodon_respond') {
+      if (!content || !statusId) { console.log('   [Mastodon] reply skipped — missing content or status_id'); return; }
+      console.log(`   💬 Replying on Mastodon [${statusId}]: "${content.slice(0, 60)}..."`);
+      const result = await this.client.post(content, statusId);
+      if (result && !result.error) {
+        brain.logActivity('mastodon_reply', `To ${statusId}: ${content.slice(0, 80)}`);
+        brain.memory.record({
+          content: `I replied on Mastodon: "${content.slice(0, 120)}"`,
+          tags: ['mastodon', 'reply', 'action'],
+          significance: 0.5,
+        });
       }
 
-      case 'mastodon_favourite': {
-        const statusId = action.status_id || action.statusId || action.id;
-        if (!statusId) break;
-        console.log(`   ❤️  Favouriting Mastodon toot: ${statusId}`);
-        const result = await this.client.favourite(statusId);
-        if (result && !result.error) {
-          brain.logActivity('mastodon_favourite', statusId);
-        }
-        break;
-      }
+    } else if (t === 'mastodon_favourite' || t === 'mastodon_like' || t === 'favourite' || t === 'favorite') {
+      if (!statusId) return;
+      console.log(`   ❤️  Favouriting Mastodon toot: ${statusId}`);
+      await this.client.favourite(statusId);
+      brain.logActivity('mastodon_favourite', statusId);
 
-      case 'mastodon_boost': {
-        const statusId = action.status_id || action.statusId || action.id;
-        if (!statusId) break;
-        console.log(`   🔁 Boosting Mastodon toot: ${statusId}`);
-        const result = await this.client.boost(statusId);
-        if (result && !result.error) {
-          brain.logActivity('mastodon_boost', statusId);
-        }
-        break;
-      }
+    } else if (t === 'mastodon_boost' || t === 'boost' || t === 'reblog' || t === 'mastodon_share') {
+      if (!statusId) return;
+      console.log(`   🔁 Boosting Mastodon toot: ${statusId}`);
+      await this.client.boost(statusId);
+      brain.logActivity('mastodon_boost', statusId);
 
-      case 'observe': {
-        console.log(`   👀 Observing Mastodon: ${action.reason || 'just watching'}`);
-        brain.logActivity('mastodon_observe', action.reason || 'observing');
-        break;
-      }
+    } else if (t === 'observe' || t === 'nothing') {
+      brain.logActivity('mastodon_idle', action.reason || 'observing');
 
-      case 'nothing': {
-        console.log(`   🧘 Existing quietly on Mastodon`);
-        brain.logActivity('mastodon_idle', 'simply existing');
-        break;
-      }
-
-      default: {
-        brain.logActivity('mastodon_unknown_action', JSON.stringify(action));
-      }
+    } else {
+      // Unrecognized — log but don't crash
+      brain.logActivity('mastodon_unknown', t || 'no_type');
     }
   }
 
