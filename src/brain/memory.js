@@ -171,11 +171,11 @@ export class Memory {
     // Sort by similarity (descending), take top N
     scored.sort((a, b) => b.similarity - a.similarity);
     const results = scored.slice(0, topN).map(s => {
-      // Reinforce recalled memories
+      // Reinforce recalled memories (persisted lazily by forget() at end of cycle)
       s.memory.lastAccessed = new Date().toISOString();
       return s.memory;
     });
-    this.save();
+    // Note: no save() here — forget() persists these lastAccessed updates at end of cycle
     return results;
   }
 
