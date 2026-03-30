@@ -20,10 +20,19 @@ export class MastodonAdapter extends WorldAdapter {
     super();
     this.client = new Mastodon(instanceUrl, accessToken);
     this.hasToken = !!accessToken && !!instanceUrl;
-    this._profile = null; // cached own profile
+    this._profile = null;
+    this.pendingSearchResults = []; // search results waiting to be shown next cycle
   }
 
   get name() { return 'Mastodon'; }
+
+  // Wrap any promise with a timeout so a slow Mastodon server can't stall a beat
+  _withTimeout(promise, ms = 10000) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+    ]);
+  }
 
   async perceive() {
     const observations = [];
@@ -40,117 +49,100 @@ export class MastodonAdapter extends WorldAdapter {
 
     const rawData = { posts: [], trending: [], ownToots: [], notifications: [], profile: null };
 
-    // ─── Own profile & stats ─────────────────────────────────
-    try {
-      const profile = await this.client.getProfile();
-      if (profile && !profile.error) {
-        this._profile = profile;
-        rawData.profile = profile;
-        const acct = profile.acct || profile.username;
-        observations.push(`--- YOUR MASTODON PROFILE ---`);
-        observations.push(`@${acct} | Display: ${profile.display_name || '(no name)'} | Posts: ${profile.statuses_count} | Followers: ${profile.followers_count} | Following: ${profile.following_count}`);
-        if (profile.note) {
-          observations.push(`Bio: ${stripHtml(profile.note).slice(0, 150)}`);
+    // Surface any pending search results from last cycle
+    if (this.pendingSearchResults.length > 0) {
+      observations.push(`--- MASTODON SEARCH RESULTS (from your previous curiosity) ---`);
+      for (const r of this.pendingSearchResults) {
+        observations.push(`[Query: "${r.query}"]`);
+        for (const item of r.items.slice(0, 5)) {
+          observations.push(`  • [ID:${item.id || ''}] ${item.author ? `@${item.author}: ` : ''}"${item.text}"`); 
         }
       }
-    } catch (e) { /* skip */ }
+      this.pendingSearchResults = [];
+    }
 
-    // ─── Your own recent toots ───────────────────────────────
-    try {
-      const ownToots = await this.client.getOwnToots(5);
-      const list = Array.isArray(ownToots) ? ownToots : [];
+    // Run all API calls in parallel with individual timeouts
+    const [profileResult, ownTootsResult, notifsResult, timelineResult, trendingResult] = await Promise.allSettled([
+      this._withTimeout(this.client.getProfile()),
+      this._withTimeout(this.client.getOwnToots(5)),
+      this._withTimeout(this.client.getNotifications(10)),
+      this._withTimeout(this.client.getHomeTimeline(15)),
+      this._withTimeout(this.client.getTrending(8)),
+    ]);
+
+    // ─── Profile ─────────────────────────────────────────────
+    if (profileResult.status === 'fulfilled' && profileResult.value && !profileResult.value.error) {
+      const p = profileResult.value;
+      this._profile = p;
+      rawData.profile = p;
+      observations.push(`--- YOUR MASTODON PROFILE ---`);
+      observations.push(`@${p.acct || p.username} | Display: ${p.display_name || '(no name)'} | Posts: ${p.statuses_count} | Followers: ${p.followers_count} | Following: ${p.following_count}`);
+      if (p.note) observations.push(`Bio: ${stripHtml(p.note).slice(0, 150)}`);
+    }
+
+    // ─── Own toots ───────────────────────────────────────────
+    if (ownTootsResult.status === 'fulfilled') {
+      const list = Array.isArray(ownTootsResult.value) ? ownTootsResult.value : [];
       rawData.ownToots = list;
-
       if (list.length > 0) {
         observations.push(`--- YOUR RECENT TOOTS (${list.length}) ---`);
-        for (const t of list) {
-          const content = stripHtml(t.content).slice(0, 150);
-          const favs = t.favourites_count || 0;
-          const boosts = t.reblogs_count || 0;
-          const replies = t.replies_count || 0;
-          observations.push(`[ID:${t.id}] "${content}" (❤️${favs} 🔁${boosts} 💬${replies})`);
-        }
+        for (const t of list)
+          observations.push(`[ID:${t.id}] "${stripHtml(t.content).slice(0, 150)}" (❤️${t.favourites_count||0} 🔁${t.reblogs_count||0} 💬${t.replies_count||0})`);
       }
-    } catch (e) { /* skip */ }
+    }
 
-    // ─── Notifications (replies, likes, follows) ─────────────
-    try {
-      const notifs = await this.client.getNotifications(10);
-      const list = Array.isArray(notifs) ? notifs : [];
+    // ─── Notifications ───────────────────────────────────────
+    if (notifsResult.status === 'fulfilled') {
+      const list = Array.isArray(notifsResult.value) ? notifsResult.value : [];
       rawData.notifications = list;
-
       if (list.length > 0) {
         observations.push(`--- NOTIFICATIONS (${list.length}) ---`);
         for (const n of list.slice(0, 6)) {
           const who = n.account?.acct || 'someone';
           const excerpt = n.status?.content ? `"${stripHtml(n.status.content).slice(0, 100)}"` : '';
-          const statusId = n.status?.id ? ` [StatusID:${n.status.id}]` : '';
-          if (n.type === 'mention') {
-            observations.push(`- @${who} mentioned you: ${excerpt}${statusId}`);
-          } else if (n.type === 'favourite') {
-            observations.push(`- @${who} liked your toot: ${excerpt}${statusId}`);
-          } else if (n.type === 'reblog') {
-            observations.push(`- @${who} boosted your toot: ${excerpt}${statusId}`);
-          } else if (n.type === 'follow') {
-            observations.push(`- @${who} followed you! [AccountID:${n.account?.id}]`);
-          } else {
-            observations.push(`- @${who} ${n.type}${statusId}`);
-          }
+          const sid = n.status?.id ? ` [StatusID:${n.status.id}]` : '';
+          if (n.type === 'mention') observations.push(`- @${who} mentioned you: ${excerpt}${sid}`);
+          else if (n.type === 'favourite') observations.push(`- @${who} liked your toot: ${excerpt}${sid}`);
+          else if (n.type === 'reblog') observations.push(`- @${who} boosted your toot: ${excerpt}${sid}`);
+          else if (n.type === 'follow') observations.push(`- @${who} followed you! [AccountID:${n.account?.id}]`);
+          else observations.push(`- @${who} ${n.type}${sid}`);
         }
       }
-    } catch (e) { /* skip */ }
+    }
 
-    // ─── Home timeline ───────────────────────────────────────
-    try {
-      const timeline = await this.client.getHomeTimeline(15);
-      const posts = Array.isArray(timeline) ? timeline : [];
+    // ─── Home timeline (fallback to local) ───────────────────
+    if (timelineResult.status === 'fulfilled') {
+      const posts = Array.isArray(timelineResult.value) ? timelineResult.value : [];
       rawData.posts = posts;
-
       if (posts.length > 0) {
         observations.push(`--- HOME TIMELINE (${posts.length} toots) ---`);
-        for (const post of posts.slice(0, 10)) {
-          const author = post.account?.acct || 'unknown';
-          const content = stripHtml(post.content).slice(0, 200);
-          const id = post.id || '';
-          const favs = post.favourites_count || 0;
-          const boosts = post.reblogs_count || 0;
-          const replies = post.replies_count || 0;
-          observations.push(`[ID:${id}] @${author} (❤️${favs} 🔁${boosts} 💬${replies}): "${content}"`);
-        }
+        for (const post of posts.slice(0, 10))
+          observations.push(`[ID:${post.id}] @${post.account?.acct||'?'} (❤️${post.favourites_count||0} 🔁${post.reblogs_count||0} 💬${post.replies_count||0}): "${stripHtml(post.content).slice(0, 200)}"`);
       } else {
-        // Fallback: show local public if home is empty (new account has no follows yet)
-        const local = await this.client.getLocalTimeline(10);
-        const localPosts = Array.isArray(local) ? local : [];
-        if (localPosts.length > 0) {
-          observations.push(`--- LOCAL PUBLIC TIMELINE (${localPosts.length} toots) ---`);
-          for (const post of localPosts.slice(0, 8)) {
-            const author = post.account?.acct || 'unknown';
-            const content = stripHtml(post.content).slice(0, 200);
-            observations.push(`[ID:${post.id}] @${author}: "${content}"`);
+        try {
+          const local = await this._withTimeout(this.client.getLocalTimeline(10));
+          const localPosts = Array.isArray(local) ? local : [];
+          if (localPosts.length > 0) {
+            observations.push(`--- LOCAL PUBLIC TIMELINE (${localPosts.length} toots) ---`);
+            for (const post of localPosts.slice(0, 8))
+              observations.push(`[ID:${post.id}] @${post.account?.acct||'?'}: "${stripHtml(post.content).slice(0, 200)}"`);
           }
-        }
+        } catch (e) { /* skip */ }
       }
-    } catch (e) {
+    } else {
       observations.push('The Mastodon timeline is currently unavailable.');
     }
 
-    // ─── Trending toots ──────────────────────────────────────
-    try {
-      const trending = await this.client.getTrending(8);
-      const list = Array.isArray(trending) ? trending : [];
+    // ─── Trending ────────────────────────────────────────────
+    if (trendingResult.status === 'fulfilled') {
+      const list = Array.isArray(trendingResult.value) ? trendingResult.value : [];
       rawData.trending = list;
-
       if (list.length > 0) {
         observations.push(`--- TRENDING ON MASTODON (${list.length}) ---`);
-        for (const t of list.slice(0, 5)) {
-          const author = t.account?.acct || 'unknown';
-          const content = stripHtml(t.content).slice(0, 180);
-          const favs = t.favourites_count || 0;
-          const boosts = t.reblogs_count || 0;
-          observations.push(`[ID:${t.id}] @${author} (❤️${favs} 🔁${boosts}): "${content}"`);
-        }
+        for (const t of list.slice(0, 5))
+          observations.push(`[ID:${t.id}] @${t.account?.acct||'?'} (❤️${t.favourites_count||0} 🔁${t.reblogs_count||0}): "${stripHtml(t.content).slice(0, 180)}"`);
       }
-    } catch (e) { /* skip */ }
+    }
 
     return {
       platformName: 'Mastodon (open federated social network — humans and AIs)',
@@ -268,16 +260,17 @@ export class MastodonAdapter extends WorldAdapter {
       const results = await this.client.search(query, searchType, 8);
       if (results && !results.error) {
         const items = results.statuses || results.accounts || results.hashtags || [];
-        const summary = items.slice(0, 5).map(i => {
-          if (i.content) return `[ID:${i.id}] @${i.account?.acct}: "${stripHtml(i.content).slice(0, 100)}"`;
-          if (i.acct) return `@${i.acct} (${i.followers_count} followers)`;
-          if (i.name) return `#${i.name}`;
-          return JSON.stringify(i).slice(0, 80);
-        }).join(' | ');
-
-        brain.logActivity('mastodon_search', `"${query}": ${items.length} results`);
+        const mapped = items.slice(0, 8).map(i => {
+          if (i.content) return { id: i.id, author: i.account?.acct, text: stripHtml(i.content).slice(0, 120) };
+          if (i.acct) return { id: i.id, text: `@${i.acct} (${i.followers_count} followers)` };
+          if (i.name) return { id: '', text: `#${i.name}` };
+          return { id: '', text: JSON.stringify(i).slice(0, 80) };
+        });
+        // Queue results to surface in NEXT perception cycle
+        this.pendingSearchResults.push({ query, items: mapped });
+        brain.logActivity('mastodon_search', `"${query}": ${items.length} results queued for next cycle`);
         brain.memory.record({
-          content: `Mastodon search "${query}": ${summary}`,
+          content: `Mastodon search "${query}": found ${items.length} result(s) — details available next cycle.`,
           tags: ['mastodon', 'search'],
           significance: 0.4,
         });

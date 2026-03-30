@@ -121,10 +121,25 @@ export class Memory {
    */
   async _embedMemory(entry) {
     const vector = await this.embeddings.embed(entry.content);
-    if (vector) {
-      this.vectors[entry.id] = vector;
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-      fs.writeFileSync(this.embeddingsPath, JSON.stringify(this.vectors));
+    if (!vector) return;
+
+    this.vectors[entry.id] = vector;
+
+    if (this.db) {
+      // Save vector directly into the memory document in MongoDB
+      try {
+        await this.db.memories.updateOne(
+          { id: entry.id },
+          { $set: { vector } },
+          { upsert: false }
+        );
+      } catch (e) { /* non-critical */ }
+    } else {
+      // Ephemeral local file (dev mode only)
+      try {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+        fs.writeFileSync(this.embeddingsPath, JSON.stringify(this.vectors));
+      } catch (e) { /* non-critical */ }
     }
   }
 

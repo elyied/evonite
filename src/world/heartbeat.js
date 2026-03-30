@@ -32,12 +32,20 @@ export class Heartbeat {
     const names = this.adapters.map(a => a.name).join(', ');
     console.log(`\n💓 Heartbeat started. Interval: ${this.intervalMs / 1000}s`);
     console.log(`   Active worlds: ${names || 'none'}\n`);
-    this._beat();
-    this.timer = setInterval(() => this._beat(), this.intervalMs);
+    this._scheduleBeat();
+  }
+
+  _scheduleBeat() {
+    // Run first beat immediately, then schedule next ONLY after completion
+    this._beat().finally(() => {
+      if (this.isRunning) {
+        this.timer = setTimeout(() => this._scheduleBeat(), this.intervalMs);
+      }
+    });
   }
 
   stop() {
-    if (this.timer) clearInterval(this.timer);
+    if (this.timer) clearTimeout(this.timer); // ← was clearInterval, now clearTimeout
     this.isRunning = false;
     console.log('\n💤 Heartbeat stopped.\n');
   }
@@ -50,13 +58,17 @@ export class Heartbeat {
     const beatStart = Date.now();
     this.lastBeat = new Date().toISOString();
 
+    // Increment cycle count ONCE per heartbeat, not once per adapter
+    this.brain.cycleCount++;
+    await this.brain._saveCycleCount();
+    this.brain.logActivity('cycle_start', `Cycle ${this.brain.cycleCount} beginning`);
+
     console.log(`\n${'═'.repeat(60)}`);
     console.log(`💓 HEARTBEAT — ${this.lastBeat}`);
-    console.log(`   Cycle: ${this.brain.cycleCount + 1} | Memories: ${this.brain.memory.count} | Age: ${this.brain.personality.age}`);
+    console.log(`   Cycle: ${this.brain.cycleCount} | Memories: ${this.brain.memory.count} | Age: ${this.brain.personality.age}`);
     console.log(`${'═'.repeat(60)}\n`);
 
     try {
-      // Run a cycle for EACH adapter — the agent perceives all its worlds
       for (const adapter of this.adapters) {
         try {
           console.log(`   🌍 Perceiving: ${adapter.name}`);
@@ -77,7 +89,6 @@ export class Heartbeat {
                   this.brain.logActivity('imagined', action.description);
                 }
               } else if (action.type === 'message_human') {
-                // Agent wants to proactively reach out to the human
                 const msgText = action.text || action.message || action.content || '';
                 if (!msgText) continue;
 
@@ -93,19 +104,17 @@ export class Heartbeat {
                   significance: 0.7,
                 });
                 this.brain.logActivity('message_human', msgText.slice(0, 100));
+
               } else if (action.type === 'change_identity') {
-                // Agent autonomously requested an identity change!
                 console.log(`\n   🪞 Metamorphosis triggered. Adopting new identity: ${action.new_name || '?'}`);
-                
+
                 const updates = {};
                 if (action.new_name) updates.name = action.new_name;
 
                 if (this.brain.imagination && action.avatar_prompt) {
                   console.log(`   🎨 Imagining new physical form: "${action.avatar_prompt}"`);
                   const filename = await this.brain.imagination.imagine(action.avatar_prompt);
-                  if (filename) {
-                    updates.avatarUrl = `/images/${filename}`;
-                  }
+                  if (filename) updates.avatarUrl = `/images/${filename}`;
                 }
 
                 if (Object.keys(updates).length > 0) {
@@ -117,13 +126,14 @@ export class Heartbeat {
                   });
                   this.brain.logActivity('metamorphosis', `New identity assumed: ${action.new_name || 'avatar update'}`);
 
-                  // Attempt to push the new identity out to the connected world!
+                  // ✅ Fix: broadcast identity to ALL adapters, not just the current one
                   const pState = this.brain.personality.getState();
-                  if (adapter.updateIdentity) {
-                     await adapter.updateIdentity(
-                       pState.name, 
-                       pState.avatarUrl ? `https://evonite.onrender.com${pState.avatarUrl}` : null
-                     );
+                  const serviceUrl = process.env.SERVICE_URL || process.env.RENDER_EXTERNAL_URL || 'https://evonite.onrender.com';
+                  const avatarAbsUrl = pState.avatarUrl ? `${serviceUrl}${pState.avatarUrl}` : null;
+                  for (const a of this.adapters) {
+                    if (a.updateIdentity) {
+                      await a.updateIdentity(pState.name, avatarAbsUrl).catch(() => {});
+                    }
                   }
                 }
               } else {

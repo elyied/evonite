@@ -90,14 +90,20 @@ export class Personality {
    * The agent is free to invent new dimensions of personality at any time.
    */
   evolve(updates) {
+    // ── Security: block prototype pollution keys ────────────────
+    const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype', 'toString', 'valueOf', 'hasOwnProperty']);
+
+    // ── Array size caps to prevent prompt bloat ─────────────────
+    const ARRAY_CAPS = { values: 30, interests: 30, aversions: 20, innerMonologue: 10 };
+
     const before = JSON.stringify(this.state);
 
-    // Deep merge: arrays get concatenated, objects get merged, primitives get replaced
     for (const [key, value] of Object.entries(updates)) {
-      if (key === 'evolutionLog') continue; // don't let the LLM overwrite the log
+      if (FORBIDDEN_KEYS.has(key)) continue;        // ← prototype pollution fix
+      if (key === 'evolutionLog') continue;
       try {
         if (Array.isArray(value) && Array.isArray(this.state[key])) {
-          const existing = new Set(this.state[key].map(v => 
+          const existing = new Set(this.state[key].map(v =>
             typeof v === 'string' ? v : JSON.stringify(v)
           ));
           for (const item of value) {
@@ -106,20 +112,23 @@ export class Personality {
               this.state[key].push(item);
             }
           }
+          // ← array cap fix: trim to max if exceeded
+          const cap = ARRAY_CAPS[key];
+          if (cap && this.state[key].length > cap) {
+            this.state[key] = this.state[key].slice(-cap);
+          }
         } else if (typeof value === 'object' && value !== null && typeof this.state[key] === 'object' && this.state[key] !== null && !Array.isArray(this.state[key])) {
           Object.assign(this.state[key], value);
         } else {
           this.state[key] = value;
         }
       } catch (e) {
-        // If merging fails, just overwrite
         this.state[key] = value;
       }
     }
 
     const after = JSON.stringify(this.state);
     if (before !== after) {
-      // Only count as a real evolution if the change is significant
       const isSignificant = this._isSignificantChange(before, after, updates);
 
       if (!Array.isArray(this.state.evolutionLog)) {
@@ -132,7 +141,6 @@ export class Personality {
           summary: this._summarizeChanges(updates),
           changes: updates,
         });
-        // Trim log to last 100 entries
         if (this.state.evolutionLog.length > 100) {
           this.state.evolutionLog = this.state.evolutionLog.slice(-100);
         }

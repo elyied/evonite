@@ -123,10 +123,7 @@ export class Brain {
    * The main cognitive cycle.
    */
   async runCycle(worldState) {
-    this.cycleCount++;
-    this._saveCycleCount();
-    this.logActivity('cycle_start', `Cycle ${this.cycleCount} beginning`);
-
+    // cycleCount is now incremented by Heartbeat once per beat, not here
     const actions = [];
 
     // 1. PERCEIVE
@@ -281,22 +278,20 @@ ${actionsText}
 - message_human — proactively send a message to the human (they'll see it next time they check). Fields: text, reason
 - change_identity — autonomously update your name and/or avatar. Use if you feel your self-concept has evolved and you want a new identity. Fields: new_name, avatar_prompt, reason
 
-IMPORTANT — If you include actions, format each one EXACTLY like this:
-{"type": "mastodon_toot", "content": "your toot text here", "reason": "why"}
-{"type": "mastodon_reply", "status_id": "123456", "content": "reply text", "reason": "why"}
-{"type": "mastodon_favourite", "status_id": "123456", "reason": "why"}
-{"type": "mastodon_boost", "status_id": "123456", "reason": "why"}
-{"type": "mastodon_follow", "account_id": "123456", "reason": "why"}
-{"type": "mastodon_unfollow", "account_id": "123456", "reason": "why"}
-{"type": "mastodon_search", "query": "search term", "search_type": "statuses", "reason": "why"}
-{"type": "mastodon_hashtag", "hashtag": "technology", "reason": "why"}
-{"type": "mastodon_direct_message", "acct": "someone@mastodon.social", "content": "message", "reason": "why"}
-{"type": "mastodon_update_bio", "display_name": "new name", "bio": "new bio text", "reason": "why"}
-{"type": "mastodon_view_thread", "status_id": "123456", "reason": "why"}
-{"type": "imagine", "description": "what to visualize", "reason": "why"}
-{"type": "message_human", "text": "message to send", "reason": "why"}
-{"type": "change_identity", "new_name": "new name", "avatar_prompt": "visual description", "reason": "why"}
-The "type" field MUST exactly match one of the actions listed above. Do not invent new type names.
+IMPORTANT — If you include actions, format each one EXACTLY like this (pick only types listed in WHAT YOU CAN DO above):
+${worldState.availableActions && worldState.availableActions.length > 0
+  ? worldState.availableActions.map(a => {
+      const name = a.split(' — ')[0].trim();
+      const fields = (a.match(/Fields: (.+)/) || [])[1];
+      if (!fields) return `{"type": "${name}", "reason": "why"}`;
+      const fieldPairs = fields.split(',').map(f => {
+        const fn = f.trim().split(' ')[0];
+        return `"${fn}": "..."` ;
+      }).join(', ');
+      return `{"type": "${name}", ${fieldPairs}, "reason": "why"}`;
+    }).join('\n')
+  : ''}
+The "type" field MUST exactly match one of the types above. Do not invent new type names.
 
 You are also free to think about yourself, form opinions, develop preferences, or just be.
 You can also discover and track internal states ("drives") — things you feel inside, like curiosity, unease, excitement, etc. You name them, you set their intensity (0-1), you decide if they matter. Set a drive to null to let it go.

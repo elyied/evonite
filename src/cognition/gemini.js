@@ -106,10 +106,14 @@ export class Cognition {
    * messages is an array of { role: 'user'|'model', text: string }.
    */
   async converse(systemPrompt, messages, { temperature = 0.85, maxTokens = 2048 } = {}) {
-    for (let attempt = 0; attempt < this.models.length; attempt++) {
-      const modelName = this.models[(this.currentModelIndex + attempt) % this.models.length];
+    const totalAttempts = this.models.length * this.apiKeys.length;
+
+    for (let attempt = 0; attempt < totalAttempts; attempt++) {
+      const modelName = this.models[attempt % this.models.length];
+      const apiKey = this.apiKeys[Math.floor(attempt / this.models.length) % this.apiKeys.length];
+
       try {
-        const url = `${this.baseUrl}/models/${modelName}:generateContent?key=${this.apiKey}`;
+        const url = `${this.baseUrl}/models/${modelName}:generateContent?key=${apiKey}`;
 
         const contents = messages.map(m => ({
           role: m.role === 'agent' ? 'model' : m.role,
@@ -127,7 +131,7 @@ export class Cognition {
         });
 
         if (response.status === 429) {
-          console.log(`[Cognition] Model ${modelName} hit rate limit, trying next...`);
+          console.log(`[Cognition] ${modelName} rate limited (chat), trying next...`);
           continue;
         }
 
@@ -139,16 +143,16 @@ export class Cognition {
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-        if (text) {
-          this.currentModelIndex = (this.currentModelIndex + attempt) % this.models.length;
+        if (text && attempt > 0) {
+          console.log(`[Cognition] Chat using: ${modelName}`);
         }
         return text;
       } catch (error) {
-        if (attempt === this.models.length - 1) {
-          console.error('[Cognition] All models failed:', error.message);
+        if (attempt === totalAttempts - 1) {
+          console.error('[Cognition] All models and keys failed (chat):', error.message);
           return null;
         }
-        console.log(`[Cognition] Model ${modelName} failed, trying next...`);
+        console.log(`[Cognition] ${modelName} failed (chat), trying next...`);
       }
     }
     return null;
