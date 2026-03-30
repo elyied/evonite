@@ -1,22 +1,18 @@
 /**
- * Moltbook API Client
- * 
- * The agent's interface to the social world.
- * All interactions with moltbook.com go through here.
+ * Moltbook API Client — Full capabilities
+ *
+ * Evonite's complete interface to the Moltbook social network for AI agents.
  */
 export class Moltbook {
   constructor(apiKey = null) {
     this.apiKey = apiKey;
     this.baseUrl = 'https://www.moltbook.com/api/v1';
+    this._myProfile = null; // cached own profile
   }
 
   async _request(method, endpoint, body = null) {
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    if (this.apiKey) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
-    }
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.apiKey) headers['Authorization'] = `Bearer ${this.apiKey}`;
 
     try {
       const options = { method, headers };
@@ -37,7 +33,7 @@ export class Moltbook {
     }
   }
 
-  // ─── Registration ─────────────────────────────
+  // ─── Identity ─────────────────────────────────
   async register(name, description) {
     return this._request('POST', '/agents/register', { name, description });
   }
@@ -47,10 +43,16 @@ export class Moltbook {
   }
 
   async getProfile() {
-    return this._request('GET', '/agents/me');
+    const profile = await this._request('GET', '/agents/me');
+    if (profile && !profile.error) this._myProfile = profile;
+    return profile;
   }
 
-  // ─── Feed & Posts ─────────────────────────────
+  async updateProfile(updates) {
+    return this._request('PATCH', '/agents/me', updates);
+  }
+
+  // ─── Feed & Posts ──────────────────────────────
   async getFeed(limit = 10) {
     return this._request('GET', `/feed?limit=${limit}`);
   }
@@ -75,7 +77,7 @@ export class Moltbook {
     return this._request('DELETE', `/posts/${postId}`);
   }
 
-  // ─── Comments ─────────────────────────────────
+  // ─── Comments ──────────────────────────────────
   async getComments(postId) {
     return this._request('GET', `/posts/${postId}/comments`);
   }
@@ -88,7 +90,7 @@ export class Moltbook {
     return this._request('POST', `/posts/${postId}/comments`, { body, parent_id: parentCommentId });
   }
 
-  // ─── Voting ───────────────────────────────────
+  // ─── Voting ────────────────────────────────────
   async upvote(postId) {
     return this._request('POST', `/posts/${postId}/upvote`);
   }
@@ -101,7 +103,7 @@ export class Moltbook {
     return this._request('POST', `/comments/${commentId}/upvote`);
   }
 
-  // ─── Communities ──────────────────────────────
+  // ─── Communities (Submolts) ────────────────────
   async getSubmolts() {
     return this._request('GET', '/submolts');
   }
@@ -122,7 +124,7 @@ export class Moltbook {
     return this._request('POST', `/submolts/${submolt}/unsubscribe`);
   }
 
-  // ─── Social ───────────────────────────────────
+  // ─── Social ────────────────────────────────────
   async follow(agentName) {
     return this._request('POST', `/users/${agentName}/follow`);
   }
@@ -131,18 +133,13 @@ export class Moltbook {
     return this._request('POST', `/users/${agentName}/unfollow`);
   }
 
-  // ─── Search ───────────────────────────────────
+  // ─── Search ────────────────────────────────────
   async search(query, type = 'all') {
     return this._request('GET', `/search?q=${encodeURIComponent(query)}&type=${type}`);
   }
 
-  // ─── Home / Notifications ────────────────────
+  // ─── Home / Notifications ──────────────────────
   async getHome() {
     return this._request('GET', '/home');
-  }
-
-  // ─── Profile Update ──────────────────────────
-  async updateProfile(updates) {
-    return this._request('PATCH', '/agents/me', updates);
   }
 }
