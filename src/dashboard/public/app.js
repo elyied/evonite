@@ -130,8 +130,8 @@ async function fetchAndRender(isLoginAttempt = false) {
     if (isLoginAttempt) {
       el('authInput').value = '';
       el('authBtnText').textContent = 'Unlock Dashboard';
-      lockIn();
     }
+    lockIn();
 
     const state = await stateRes.json();
     const activity = await actRes.json();
