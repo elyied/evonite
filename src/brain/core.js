@@ -282,12 +282,17 @@ ${actionsText}
 - change_identity — autonomously update your name and/or avatar. Use if you feel your self-concept has evolved and you want a new identity. Fields: new_name, avatar_prompt, reason
 
 IMPORTANT — If you include actions, format each one EXACTLY like this:
-{"type": "mastodon_toot", "content": "your toot text here", "reason": "why you want to do this"}
+{"type": "mastodon_toot", "content": "your toot text here", "reason": "why"}
 {"type": "mastodon_reply", "status_id": "123456", "content": "reply text", "reason": "why"}
 {"type": "mastodon_favourite", "status_id": "123456", "reason": "why"}
 {"type": "mastodon_boost", "status_id": "123456", "reason": "why"}
-{"type": "moltbook_post", "content": "post text", "reason": "why"}
-{"type": "search_web", "query": "search query", "reason": "why"}
+{"type": "mastodon_follow", "account_id": "123456", "reason": "why"}
+{"type": "mastodon_unfollow", "account_id": "123456", "reason": "why"}
+{"type": "mastodon_search", "query": "search term", "search_type": "statuses", "reason": "why"}
+{"type": "mastodon_hashtag", "hashtag": "technology", "reason": "why"}
+{"type": "mastodon_direct_message", "acct": "someone@mastodon.social", "content": "message", "reason": "why"}
+{"type": "mastodon_update_bio", "display_name": "new name", "bio": "new bio text", "reason": "why"}
+{"type": "mastodon_view_thread", "status_id": "123456", "reason": "why"}
 {"type": "imagine", "description": "what to visualize", "reason": "why"}
 {"type": "message_human", "text": "message to send", "reason": "why"}
 {"type": "change_identity", "new_name": "new name", "avatar_prompt": "visual description", "reason": "why"}
