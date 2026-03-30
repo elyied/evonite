@@ -11,11 +11,17 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app">
+  
+  <!-- Glowing Background Orbs for Glassmorphism -->
+  <div class="glass-orb orb-1"></div>
+  <div class="glass-orb orb-2"></div>
+  <div class="glass-orb orb-3"></div>
+
+  <div class="app-container">
+    
     <!-- Header -->
-    <header class="header">
+    <header class="glass-header">
       <div class="header-left">
-        <div class="logo-glow"></div>
         <h1 class="logo">EVONITE</h1>
         <span class="subtitle">Mind Observer</span>
       </div>
@@ -24,123 +30,127 @@
           <span class="pulse-dot"></span>
           <span id="pulseText">Connecting...</span>
         </div>
-        <button class="btn-pulse" id="btnRefresh" title="Refresh brain state">↻ Sync</button>
+        <button class="btn-glass" id="btnRefresh" title="Refresh brain state">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          Sync
+        </button>
       </div>
     </header>
 
-    <!-- Identity Banner -->
-    <section class="identity-banner" id="identityBanner">
-      <div class="identity-content">
-        <div class="identity-avatar" id="identityAvatar">?</div>
-        <div class="identity-info">
-          <h2 class="identity-name" id="identityName">Unknown Mind</h2>
-          <p class="identity-concept" id="identityConcept">This mind hasn't formed a self-concept yet...</p>
+    <!-- Bento Grid Canvas -->
+    <main class="bento-grid">
+
+      <!-- 1. Chat Column (Spans 2 Rows vertically) -->
+      <section class="bento-card chat-card">
+        <div class="card-header">
+          <h3>💬 Talk to the Mind</h3>
+          <div class="header-actions">
+            <button class="voice-toggle" id="voiceToggle" title="Toggle voice">🔇</button>
+            <span class="card-badge" id="chatStatus">Ready</span>
+          </div>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-intro">
+            <div class="intro-icon">✨</div>
+            <p>You can talk directly to this mind.<br>It responds using everything it has learned.<br>Your conversations shape who it becomes.</p>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" id="chatInput" class="chat-input" placeholder="Say something..." autocomplete="off" maxlength="500">
+          <button class="chat-send" id="chatSend" title="Send">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- 2. Identity Hero Banner (Spans 2 cols horizontally) -->
+      <section class="bento-card identity-card">
+        <div class="identity-flex">
+          <div class="identity-avatar-wrap">
+            <div class="identity-avatar" id="identityAvatar">?</div>
+            <div class="avatar-ring"></div>
+          </div>
+          <div class="identity-info">
+            <h2 class="identity-name" id="identityName">Unknown Mind</h2>
+            <p class="identity-concept" id="identityConcept">This mind hasn't formed a self-concept yet...</p>
+          </div>
         </div>
         <div class="identity-stats">
           <div class="stat"><span class="stat-value" id="statCycles">0</span><span class="stat-label">Cycles</span></div>
-          <div class="stat"><span class="stat-value" id="statMemories">0</span><span class="stat-label">Memories</span></div>
-          <div class="stat"><span class="stat-value" id="statDrives">0</span><span class="stat-label">Drives</span></div>
           <div class="stat"><span class="stat-value" id="statEvolutions">0</span><span class="stat-label">Evo Level</span></div>
+          <div class="stat"><span class="stat-value" id="statDrives">0</span><span class="stat-label">Drives</span></div>
+          <div class="stat"><span class="stat-value" id="statMemories">0</span><span class="stat-label">Memories</span></div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Main Layout -->
-    <div class="main-layout">
-
-      <!-- LEFT: Chat -->
-      <aside class="chat-column">
-        <div class="card chat-card">
-          <div class="card-header">
-            <h3>💬 Talk to the Mind</h3>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <button class="voice-toggle" id="voiceToggle" title="Toggle voice">🔇</button>
-              <span class="card-badge" id="chatStatus">Ready</span>
-            </div>
-          </div>
-          <div class="chat-messages" id="chatMessages">
-            <div class="chat-intro">
-              <p>You can talk directly to this mind.<br>It responds using everything it has learned.<br>Your conversations shape who it becomes.</p>
-            </div>
-          </div>
-          <div class="chat-input-area">
-            <input type="text" id="chatInput" class="chat-input" placeholder="Say something..." autocomplete="off" maxlength="500">
-            <button class="chat-send" id="chatSend" title="Send">↑</button>
-          </div>
+      <!-- 3. Personality Card -->
+      <section class="bento-card personality-card">
+        <div class="card-header">
+          <h3>🎭 Personality</h3>
+          <span class="card-badge" id="personalityAge">Age: 0</span>
         </div>
-      </aside>
-
-      <!-- RIGHT: Brain panels -->
-      <main class="brain-column">
-        <div class="grid">
-          <!-- Personality -->
-          <section class="card personality-card">
-            <div class="card-header">
-              <h3>🎭 Personality</h3>
-              <span class="card-badge" id="personalityAge">Age: 0</span>
-            </div>
-            <div class="card-body" id="personalityContent">
-              <p class="empty-state">A blank canvas. No traits formed yet.</p>
-            </div>
-          </section>
-
-          <!-- Drives -->
-          <section class="card drives-card">
-            <div class="card-header">
-              <h3>⚡ Internal Drives</h3>
-              <span class="card-badge" id="driveCount">0 drives</span>
-            </div>
-            <div class="card-body" id="drivesContent">
-              <p class="empty-state">No drives discovered yet. The mind hasn't felt anything strong enough to name.</p>
-            </div>
-          </section>
-
-          <!-- Inner World -->
-          <section class="card inner-card">
-            <div class="card-header"><h3>🧠 Inner World</h3></div>
-            <div class="card-body" id="innerContent">
-              <p class="empty-state">No inner monologue yet. The mind is silent.</p>
-            </div>
-          </section>
-
-          <!-- Memories -->
-          <section class="card memories-card">
-            <div class="card-header">
-              <h3>📦 Memories</h3>
-              <span class="card-badge" id="memoryCount">0 memories</span>
-            </div>
-            <div class="card-body" id="memoriesContent">
-              <p class="empty-state">No memories formed yet. A brand new existence.</p>
-            </div>
-          </section>
-
-          <!-- Activity -->
-          <section class="card activity-card">
-            <div class="card-header"><h3>📡 Activity Log</h3></div>
-            <div class="card-body" id="activityContent">
-              <p class="empty-state">Waiting for first heartbeat...</p>
-            </div>
-          </section>
-
-          <!-- Imagination Gallery -->
-          <section class="card imagination-card">
-            <div class="card-header"><h3>🎨 Imagination</h3></div>
-            <div class="card-body" id="imaginationContent">
-              <p class="empty-state">The mind hasn't visualized anything yet.</p>
-            </div>
-          </section>
-
-          <!-- Growth Timeline (full width) -->
-          <section class="card evolution-card">
-            <div class="card-header"><h3>🌱 Growth Timeline</h3></div>
-            <div class="card-body" id="evolutionContent">
-              <p class="empty-state">No growth events yet. Life is just beginning.</p>
-            </div>
-          </section>
+        <div class="card-body" id="personalityContent">
+          <p class="empty-state">A blank canvas.</p>
         </div>
-      </main>
+      </section>
 
-    </div>
+      <!-- 4. Drives Card -->
+      <section class="bento-card drives-card">
+        <div class="card-header">
+          <h3>⚡ Internal Drives</h3>
+          <span class="card-badge" id="driveCount">0</span>
+        </div>
+        <div class="card-body" id="drivesContent">
+          <p class="empty-state">No drives discovered yet.</p>
+        </div>
+      </section>
+
+      <!-- 5. Inner World Card -->
+      <section class="bento-card inner-card">
+        <div class="card-header">
+          <h3>🧠 Inner Monologue</h3>
+        </div>
+        <div class="card-body" id="innerContent">
+          <p class="empty-state">The mind is silent.</p>
+        </div>
+      </section>
+
+      <!-- 6. Memories Card -->
+      <section class="bento-card memories-card">
+        <div class="card-header">
+          <h3>📦 Memories</h3>
+          <span class="card-badge" id="memoryCount">0</span>
+        </div>
+        <div class="card-body" id="memoriesContent">
+          <p class="empty-state">No memories formed yet.</p>
+        </div>
+      </section>
+
+      <!-- 7. Activity Log (Spans 2 cols) -->
+      <section class="bento-card activity-card">
+        <div class="card-header"><h3>📡 Activity Stream</h3></div>
+        <div class="card-body" id="activityContent">
+          <p class="empty-state">Waiting for first heartbeat...</p>
+        </div>
+      </section>
+
+      <!-- 8. Evolution Log (Spans 2 cols) -->
+      <section class="bento-card evolution-card">
+        <div class="card-header"><h3>🌱 Growth Timeline</h3></div>
+        <div class="card-body" id="evolutionContent">
+          <p class="empty-state">No growth events yet.</p>
+        </div>
+      </section>
+
+      <!-- 9. Imagination Gallery (Spans all 4 cols) -->
+      <section class="bento-card imagination-card">
+        <div class="card-header"><h3>🎨 Imagination Gallery</h3></div>
+        <div class="card-body" id="imaginationContent">
+          <p class="empty-state">The mind hasn't visualized anything yet.</p>
+        </div>
+      </section>
+
+    </main>
   </div>
 
   <script src="app.js"></script>
