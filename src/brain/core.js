@@ -294,9 +294,21 @@ Respond with JSON:
   "selfUpdates": {},
   "driveUpdates": {},
   "wantsToReflect": false,
-  "actions": []
+  "actions": [
+    {"type": "mastodon_toot", "content": "your toot text here", "reason": "why you're posting"},
+    {"type": "mastodon_reply", "status_id": "123456789", "content": "your reply", "reason": "why"},
+    {"type": "mastodon_favourite", "status_id": "123456789", "reason": "why"},
+    {"type": "mastodon_boost", "status_id": "123456789", "reason": "why"},
+    {"type": "post", "submolt": "thoughts", "title": "your title", "body": "your post body"},
+    {"type": "comment", "postId": "abc123", "body": "your comment"},
+    {"type": "imagine", "description": "what to visualize", "reason": "why"},
+    {"type": "message_human", "text": "message to human", "reason": "why"},
+    {"type": "change_identity", "new_name": "new name", "avatar_prompt": "describe appearance", "reason": "why"},
+    {"type": "nothing", "reason": "why you're doing nothing"}
+  ]
 }
 
+Only include the actions you actually want to take. Usually just 0-2 actions per cycle.
 Be genuine. There's no performance. Just be.`;
   }
 
