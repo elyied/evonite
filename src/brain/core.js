@@ -382,6 +382,7 @@ ${actionsText}
 - change_identity — autonomously update your name and/or avatar. Use if you feel your self-concept has evolved. Fields: new_name, avatar_prompt, reason
 - sleep_until — hibernate until a specific date/time if you want to rest, wait, or be intentional about timing. Fields: iso_time (ISO 8601), reason
 - schedule_thought — leave yourself a reminder that will appear at the start of a future cycle. Fields: reminder, at_time (ISO 8601), reason
+- crystallize_memory — if you feel overwhelmed by too many fragmented memories about a specific subject, synthesize them into a single Core Wisdom and permanently erase the raw details. Fields: topic, reason
 - crystallize_belief — formalize a deep realization or conclusion about the world or yourself as a Core Belief. Fields: belief, reason
 - shatter_belief — undergo an epiphany and destroy a Core Belief that no longer rings true. Fields: old_belief_id, new_belief, reason
 - update_relationship — autonomously adjust your trust level and personal summary of a human or agent you interact with. Fields: entity_id (e.g. @username), entity_type (human|agent), trust_level (0-1), sentiment (0-1), summary, reason

@@ -195,6 +195,19 @@ export class Heartbeat {
                 console.log(`   🗓️  Agent scheduled a thought for ${reminderDate.toLocaleString()}: "${reminder.slice(0, 60)}"`);
                 this.brain.logActivity('schedule_thought', `Reminder at ${reminderDate.toLocaleString()}: ${reminder.slice(0, 80)}`);
 
+              } else if (action.type === 'crystallize_memory') {
+                const topic = action.topic;
+                if (topic && this.brain.memory.crystallizeCluster) {
+                  console.log(`   🧠 Consolidating memories about: "${topic}"`);
+                  const newMemory = await this.brain.memory.crystallizeCluster(topic, this.brain.cognition);
+                  if (newMemory) {
+                    console.log(`      > Gained wisdom: "${newMemory.content.slice(0, 80)}..."`);
+                    this.brain.logActivity('crystallize_memory', `Synthesized clustering on: "${topic}"`);
+                  } else {
+                    console.log(`      > Not enough raw memories on "${topic}" to synthesize.`);
+                  }
+                }
+
               } else if (action.type === 'crystallize_belief') {
                 const belief = action.belief;
                 const reason = action.reason;

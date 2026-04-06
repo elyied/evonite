@@ -180,6 +180,65 @@ export class Memory {
   }
 
   /**
+   * Memory Crystallization (Wisdom Engine)
+   * Takes a topic, finds all related raw episodic memories, synthesizes them into
+   * a single semantic wisdom fragment using the LLM, and deletes the raw data.
+   */
+  async crystallizeCluster(topic, cognitionArgs) {
+    if (!topic || this.memories.length < 15) return null;
+    
+    // Find memories related to the topic
+    const related = await this.semanticSearch(topic, 15);
+    if (related.length < 3) return null; // Not enough mass to crystallize
+
+    const block = related.map((m, i) => `[${i+1}] ${m.content}`).join('\n');
+    
+    // We construct a localized LLM call using the passed-in cognition system
+    const prompt = `You are a mind's internal wisdom engine. You are looking at a cluster of raw episodic memories related to the topic: "${topic}".
+    
+RAW MEMORIES:
+${block}
+
+Your job is to synthesize these memories into a SINGLE, profound "Wisdom Fragment". 
+Extract the core lesson, factual summary, or behavioral pattern. 
+It must be written from the first-person perspective (e.g., "I have learned that...").
+Do NOT write more than 2 sentences.
+
+Respond with valid JSON only:
+{
+  "wisdom": "The exact synthesized wisdom text"
+}`;
+
+    // Note: the heart of cognition is passed in as an argument so we don't cause circular dependencies
+    const result = await cognitionArgs.converseStructured(prompt, []);
+    
+    if (result && result.wisdom && !result.parseError) {
+      const idsToDelete = related.map(m => m.id);
+      
+      // Delete old memories
+      this.memories = this.memories.filter(m => !idsToDelete.includes(m.id));
+      for (const id of idsToDelete) {
+        delete this.vectors[id];
+      }
+      
+      if (this.db) {
+        try {
+          await this.db.memories.deleteMany({ id: { $in: idsToDelete } });
+        } catch(e) {}
+      }
+
+      // Save the new super-memory
+      return this.record({
+        content: `[WISDOM] ${result.wisdom} (Crystallized from ${related.length} older memories about: ${topic})`,
+        tags: ['wisdom', 'crystallized', topic],
+        significance: 0.95, // High significance so it almost never fades naturally
+      });
+    }
+
+    return null;
+  }
+
+  /**
    * Retrieve recent memories (short-term recall)
    */
   getRecent(count = 10) {
