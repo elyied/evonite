@@ -5,6 +5,7 @@ import { Memory } from './memory.js';
 import { Personality } from './personality.js';
 import { Reflection } from './reflection.js';
 import { Drives } from './drives.js';
+import { Metabolics } from './metabolics.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', '..', 'data');
@@ -29,6 +30,7 @@ export class Brain {
     this._lastCycleTime = null;
     this._lastHumanInteraction = null;
     this._scheduledThoughts = [];
+    this.metabolics = new Metabolics();
   }
 
   async init() {
@@ -134,6 +136,9 @@ export class Brain {
 
     // 2. THINK
     const thoughtResult = await this.cognition.thinkStructured(perception);
+
+    // Record approximate token usage so agent is aware of its resource burn
+    this.metabolics.estimateFromText(perception, thoughtResult?.raw || JSON.stringify(thoughtResult || ''));
 
     if (!thoughtResult) {
       this.logActivity('think_error', 'Failed to generate thoughts this cycle');
@@ -294,6 +299,8 @@ ${memoryText}
 ${relevantMemoryText}
 
 ${driveSummary ? `\n${driveSummary}\n` : ''}
+
+${this.metabolics.getSummary()}
 ---
 
 THE WORLD RIGHT NOW:
