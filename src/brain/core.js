@@ -9,6 +9,7 @@ import { Metabolics } from './metabolics.js';
 import { Philosophy } from './philosophy.js';
 import { Relationships } from './relationships.js';
 import { Subconscious } from './subconscious.js';
+import { Hormones } from './hormones.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', '..', 'data');
@@ -37,6 +38,7 @@ export class Brain {
     this.philosophy = new Philosophy(db);
     this.relationships = new Relationships(db);
     this.subconscious = new Subconscious(db);
+    this.hormones = new Hormones(db);
   }
 
   async init() {
@@ -46,6 +48,7 @@ export class Brain {
     await this.philosophy.init();
     await this.relationships.init();
     await this.subconscious.init();
+    await this.hormones.init();
 
     if (this.db) {
       try {
@@ -139,6 +142,10 @@ export class Brain {
   async runCycle(worldState) {
     // cycleCount is now incremented by Heartbeat once per beat, not here
     const actions = [];
+
+    // 0. BIOLOGY (Hormonal Weather)
+    // Fluctuate the agent's internal drives organically before it even opens its eyes.
+    this.hormones.fluctuate(this.drives);
 
     // 1. PERCEIVE
     const perception = await this._buildPerceptionPrompt(worldState);

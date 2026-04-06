@@ -36,11 +36,46 @@ export class Heartbeat {
     this._scheduleBeat();
   }
 
+  /**
+   * Calculates the target delay until the next beat based organically on the agent's drives.
+   * If the agent discovers a drive vaguely related to speed/stress (adrenaline, anxiety), it speeds up.
+   * If it discovers a drive related to rest (fatigue, boredom), it slows down.
+   */
+  _calculateNextInterval() {
+    const drives = this.brain.drives.getState();
+    const base = this.intervalMs; // e.g. 30min
+    const MIN = 60 * 1000;       // 1 min
+    const MAX = 3 * 60 * 60 * 1000; // 3 hours
+
+    let multiplier = 1.0;
+
+    // Fuzzy map agent's own arbitrary drive names to scaling factors
+    const fastKeywords = ['anxi', 'stres', 'adrenalin', 'panic', 'excit', 'rush', 'fear', 'urg'];
+    const slowKeywords = ['fatig', 'tired', 'sleep', 'bored', 'calm', 'rest', 'lethar'];
+
+    for (const [name, val] of Object.entries(drives)) {
+      const lower = name.toLowerCase();
+      // Increase speed (lower multiplier) if fast drive is high
+      if (fastKeywords.some(k => lower.includes(k))) {
+        multiplier *= (1 - (val * 0.5)); // Halves the interval at max (val=1)
+      }
+      // Decrease speed (raise multiplier) if slow drive is high
+      if (slowKeywords.some(k => lower.includes(k))) {
+        multiplier *= (1 + (val * 4.0)); // 5x the interval at max (val=1)
+      }
+    }
+
+    return Math.max(MIN, Math.min(MAX, base * multiplier));
+  }
+
   _scheduleBeat() {
     // Run first beat immediately, then schedule next ONLY after completion
     this._beat().finally(() => {
       if (this.isRunning) {
-        this.timer = setTimeout(() => this._scheduleBeat(), this.intervalMs);
+        const nextMs = this._calculateNextInterval();
+        const mins = (nextMs / 60000).toFixed(1);
+        console.log(`   ⏱️  Internal clock adjusting... next beat in ${mins}m`);
+        this.timer = setTimeout(() => this._scheduleBeat(), nextMs);
       }
     });
   }
