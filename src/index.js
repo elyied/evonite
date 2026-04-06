@@ -7,6 +7,7 @@ import { Heartbeat } from './world/heartbeat.js';
 import { MoltbookAdapter } from './world/adapters/moltbook-adapter.js';
 import { MastodonAdapter } from './world/adapters/mastodon-adapter.js';
 import { WebAdapter } from './world/adapters/web-adapter.js';
+import { GithubAdapter } from './world/adapters/github-adapter.js';
 import { startDashboard } from './dashboard/server.js';
 import { Database } from './db/mongo.js';
 
@@ -84,8 +85,11 @@ console.log('');
 // ─── Initialize world adapters ────────────────────
 const adapters = [];
 
+const GITHUB_REPO = process.env.GITHUB_REPO || 'elyied/evonite';
+
 adapters.push(new MoltbookAdapter(MOLTBOOK_API_KEY || null));
 adapters.push(new WebAdapter());
+adapters.push(new GithubAdapter(null, GITHUB_REPO)); // We must pass world later, wait, index.js doesn't have world.
 
 if (MASTODON_INSTANCE_URL && MASTODON_ACCESS_TOKEN) {
   adapters.push(new MastodonAdapter(MASTODON_INSTANCE_URL, MASTODON_ACCESS_TOKEN));
