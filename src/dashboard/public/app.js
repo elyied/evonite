@@ -335,11 +335,12 @@ function renderRelationships(rels) {
     const icon = isHuman ? '👤' : '🤖';
     const trustPercent = Math.round(rel.trust_level * 100);
     const sentiment = rel.sentiment > 0.6 ? '🟩' : (rel.sentiment < 0.4 ? '🟥' : '🟨');
+    const classification = rel.entity_type || rel.type || 'unknown_entity';
     
     return `
       <div class="trait-item" style="border-left: 2px solid rgba(255,255,255,0.2); padding-left: 10px; margin-bottom: 12px;">
-        <div style="display:flex; justify-content:space-between;">
-          <span style="font-weight: 600;">${icon} ${esc(id)}</span>
+        <div style="display:flex; justify-content:space-between; align-items: baseline;">
+          <span style="font-weight: 600;">${icon} ${esc(id)} <span style="font-size: 10px; opacity: 0.5; font-weight: normal; margin-left: 4px; text-transform: uppercase;">[${esc(classification)}]</span></span>
           <span style="font-size: 11px; opacity: 0.7;">Trust: ${trustPercent}% ${sentiment}</span>
         </div>
         <div style="font-style: italic; opacity: 0.8; font-size: 12px; margin-top: 4px;">"${esc(rel.summary || 'Known entity.')}"</div>
