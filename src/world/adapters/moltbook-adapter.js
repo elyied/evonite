@@ -357,7 +357,8 @@ Second, identify the numbers and the mathematical operation.
 Finally, provide the answer ending with exactly "FINAL_ANSWER: [number]". Make sure the number has strictly 2 decimal places (e.g., 37.00).`;
 
       // Use the brain's raw cognition for a one-shot thought
-      const answer = await brain.cognition.think(prompt, { temperature: 0.1, maxTokens: 300 });
+      const response = await brain.cognition.think(prompt, { temperature: 0.1, maxTokens: 300 });
+      const answer = response ? response.text : null;
       console.log("   --- LLM Output --- \n", answer);
       if (answer) {
         let cleanAnswer = '';

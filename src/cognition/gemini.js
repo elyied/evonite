@@ -79,7 +79,7 @@ export class Cognition {
           console.log(`[Cognition] Using model: ${modelName}`);
         }
 
-        return text;
+        return { text, usage: data.usageMetadata || null };
       } catch (error) {
         if (attempt === totalAttempts - 1) {
           console.error('[Cognition] All models and keys failed:', error.message);
@@ -97,7 +97,12 @@ export class Cognition {
    */
   async thinkStructured(prompt, { temperature = 0.7, maxTokens = 2048 } = {}) {
     const response = await this.think(prompt, { temperature, maxTokens });
-    return this._parseJSON(response);
+    if (!response || !response.text) return null;
+    const parsed = this._parseJSON(response.text);
+    if (parsed && typeof parsed === 'object') {
+      parsed._usage = response.usage;
+    }
+    return parsed;
   }
 
   /**
@@ -146,7 +151,7 @@ export class Cognition {
         if (text && attempt > 0) {
           console.log(`[Cognition] Chat using: ${modelName}`);
         }
-        return text;
+        return { text, usage: data.usageMetadata || null };
       } catch (error) {
         if (attempt === totalAttempts - 1) {
           console.error('[Cognition] All models and keys failed (chat):', error.message);
@@ -163,7 +168,12 @@ export class Cognition {
    */
   async converseStructured(systemPrompt, messages, opts = {}) {
     const response = await this.converse(systemPrompt, messages, opts);
-    return this._parseJSON(response);
+    if (!response || !response.text) return null;
+    const parsed = this._parseJSON(response.text);
+    if (parsed && typeof parsed === 'object') {
+      parsed._usage = response.usage;
+    }
+    return parsed;
   }
 
   /**

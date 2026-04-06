@@ -137,8 +137,12 @@ export class Brain {
     // 2. THINK
     const thoughtResult = await this.cognition.thinkStructured(perception);
 
-    // Record approximate token usage so agent is aware of its resource burn
-    this.metabolics.estimateFromText(perception, thoughtResult?.raw || JSON.stringify(thoughtResult || ''));
+    // Record token usage so agent is aware of its resource burn
+    if (thoughtResult && thoughtResult._usage) {
+      this.metabolics.record(thoughtResult._usage.promptTokenCount || 0, thoughtResult._usage.candidatesTokenCount || 0);
+    } else {
+      this.metabolics.estimateFromText(perception, thoughtResult?.raw || JSON.stringify(thoughtResult || ''));
+    }
 
     if (!thoughtResult) {
       this.logActivity('think_error', 'Failed to generate thoughts this cycle');

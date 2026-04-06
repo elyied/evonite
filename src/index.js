@@ -56,7 +56,7 @@ console.log(`🔑 Gemini keys loaded: ${GEMINI_API_KEYS.length} key(s) in rotati
 // ─── Initialize cognitive systems ─────────────────
 const cognition = new Cognition(GEMINI_API_KEYS);
 const embeddings = new Embeddings(GEMINI_API_KEYS);
-const imagination = new Imagination(GEMINI_API_KEYS, cognition); // pass cognition so mood is LLM-generated
+const imagination = new Imagination(); // completely free, no keys needed
 
 // ─── Database connection ──────────────────────────
 const db = new Database();
