@@ -230,6 +230,8 @@ export class Heartbeat {
                 if (entityId && this.brain.relationships) {
                   console.log(`   🤝 Updating relationship with ${entityId}: Trust ${action.trust_level}`);
                   const updates = {};
+                  if (action.type && action.type !== 'update_relationship') updates.type = action.type; // since action.type is the verb, sometimes LLMs put it in 'type' field due to format confusion, so we also need a dedicated 'entity_type' or just handle 'type' smartly. Actually I'll use action.entity_type to be safe because action.type === 'update_relationship'.
+                  if (action.entity_type !== undefined) updates.type = action.entity_type;
                   if (action.trust_level !== undefined) updates.trust_level = action.trust_level;
                   if (action.sentiment !== undefined) updates.sentiment = action.sentiment;
                   if (action.summary !== undefined) updates.summary = action.summary;

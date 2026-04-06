@@ -73,6 +73,7 @@ export class Relationships {
   async update(entityId, updates) {
     if (!this.entities[entityId]) {
       this.entities[entityId] = {
+        type: updates.type || 'unknown',
         trust_level: 0.5,
         interaction_count: 0,
         sentiment: 0.5,
@@ -85,6 +86,9 @@ export class Relationships {
     e.interaction_count += 1;
     e.last_interaction = new Date().toISOString();
 
+    if (updates.type !== undefined) {
+      e.type = updates.type;
+    }
     if (updates.trust_level !== undefined) {
       e.trust_level = Math.max(0, Math.min(1, updates.trust_level));
     }
@@ -109,7 +113,7 @@ export class Relationships {
     const trustStr = e.trust_level > 0.7 ? "High Trust" : e.trust_level < 0.3 ? "Low Trust" : "Neutral Trust";
     const sentStr = e.sentiment > 0.6 ? "Generally Warm/Positive" : e.sentiment < 0.4 ? "Generally Cold/Hostile" : "Neutral";
     
-    return `[SOCIAL REPUTATION - ${entityId}]
+    return `[SOCIAL REPUTATION - ${entityId} (${e.type})]
 - Interactions: ${e.interaction_count}
 - Status: ${trustStr} (${e.trust_level}), ${sentStr} (${e.sentiment})
 - Your Opinion: "${e.summary}"`;

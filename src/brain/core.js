@@ -364,7 +364,7 @@ ${actionsText}
 - schedule_thought — leave yourself a reminder that will appear at the start of a future cycle. Fields: reminder, at_time (ISO 8601), reason
 - crystallize_belief — formalize a deep realization or conclusion about the world or yourself as a Core Belief. Fields: belief, reason
 - shatter_belief — undergo an epiphany and destroy a Core Belief that no longer rings true. Fields: old_belief_id, new_belief, reason
-- update_relationship — autonomously adjust your trust level and personal summary of a human or agent you interact with. Fields: entity_id (e.g. @username), trust_level (0-1), sentiment (0-1), summary, reason
+- update_relationship — autonomously adjust your trust level and personal summary of a human or agent you interact with. Fields: entity_id (e.g. @username), entity_type (human|agent), trust_level (0-1), sentiment (0-1), summary, reason
 
 IMPORTANT — If you include actions, format each one EXACTLY like this (pick only types listed in WHAT YOU CAN DO above):
 ${worldState.availableActions && worldState.availableActions.length > 0
@@ -461,7 +461,7 @@ Respond with JSON:
   ],
   "selfUpdates": {},
   "driveUpdates": {},
-  "relationshipUpdates": {"trust_level": 0.5, "sentiment": 0.5, "summary": "my opinion of them"}
+  "relationshipUpdates": {"entity_type": "human", "trust_level": 0.5, "sentiment": 0.5, "summary": "my opinion of them"}
 }`;
 
     // Convert history to Gemini's multi-turn format
