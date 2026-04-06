@@ -345,6 +345,10 @@ function renderRelationships(rels) {
         </div>
         <div style="font-style: italic; opacity: 0.8; font-size: 12px; margin-top: 4px;">"${esc(rel.summary || 'Known entity.')}"</div>
         <div style="font-size: 10px; opacity: 0.5; margin-top: 2px;">Interactions: ${rel.interaction_count || 1}</div>
+        <details style="margin-top: 8px; font-size: 11px; opacity: 0.6;">
+          <summary style="cursor: pointer;">View Raw Structure</summary>
+          <pre style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; overflow-x: auto; margin-top: 4px;">${esc(JSON.stringify(rel, null, 2))}</pre>
+        </details>
       </div>
     `;
   }).join('');
