@@ -337,18 +337,28 @@ function renderRelationships(rels) {
     const sentiment = rel.sentiment > 0.6 ? '🟩' : (rel.sentiment < 0.4 ? '🟥' : '🟨');
     const classification = rel.entity_type || rel.type || 'unknown_entity';
     
+    const extraKeys = Object.entries(rel).filter(([k]) => !['summary', 'trust_level', 'sentiment', 'interaction_count', 'type', 'entity_type'].includes(k));
+    const extraHtml = extraKeys.length > 0 ? `
+      <div style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px;">
+        <div style="font-size: 10px; opacity: 0.5; text-transform: uppercase; margin-bottom: 4px;">Extended Cognition Properties</div>
+        ${extraKeys.map(([k, v]) => `
+          <div style="display: flex; gap: 8px; font-size: 11px; margin-bottom: 2px;">
+            <span style="opacity: 0.7; font-family: 'JetBrains Mono', monospace;">${esc(k)}:</span>
+            <span style="opacity: 0.9; color: var(--text);">${esc(typeof v === 'object' ? JSON.stringify(v) : v)}</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : '';
+
     return `
-      <div class="trait-item" style="border-left: 2px solid rgba(255,255,255,0.2); padding-left: 10px; margin-bottom: 12px;">
+      <div class="trait-item" style="border-left: 2px solid rgba(255,255,255,0.2); padding-left: 10px; margin-bottom: 12px; transition: all 0.2s ease;">
         <div style="display:flex; justify-content:space-between; align-items: baseline;">
           <span style="font-weight: 600;">${icon} ${esc(id)} <span style="font-size: 10px; opacity: 0.5; font-weight: normal; margin-left: 4px; text-transform: uppercase;">[${esc(classification)}]</span></span>
           <span style="font-size: 11px; opacity: 0.7;">Trust: ${trustPercent}% ${sentiment}</span>
         </div>
         <div style="font-style: italic; opacity: 0.8; font-size: 12px; margin-top: 4px;">"${esc(rel.summary || 'Known entity.')}"</div>
         <div style="font-size: 10px; opacity: 0.5; margin-top: 2px;">Interactions: ${rel.interaction_count || 1}</div>
-        <details style="margin-top: 8px; font-size: 11px; opacity: 0.6;">
-          <summary style="cursor: pointer;">View Raw Structure</summary>
-          <pre style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; overflow-x: auto; margin-top: 4px;">${esc(JSON.stringify(rel, null, 2))}</pre>
-        </details>
+        ${extraHtml}
       </div>
     `;
   }).join('');
