@@ -11,16 +11,18 @@ const MANIFEST_FILE = path.join(IMAGES_DIR, '_manifest.json');
  * Imagination — The agent's ability to visualize.
  *
  * Generates images from the agent's descriptions using Gemini.
- * Now also saves a mood manifest so the gallery can show the emotional
- * state that created each image — giving a window into the machine's
- * subconscious.
+ * The visual style of each image is decided autonomously by the agent's
+ * own cognition layer, which reads the current drive state (whatever names
+ * the agent invented) and writes a visual art style description itself.
+ * Nothing is hardcoded — the agent's mood becomes art in its own words.
  */
 export class Imagination {
-  constructor(apiKeyOrKeys) {
+  constructor(apiKeyOrKeys, cognition = null) {
     this.apiKeys = Array.isArray(apiKeyOrKeys)
       ? apiKeyOrKeys.filter(Boolean)
       : [apiKeyOrKeys].filter(Boolean);
     this.currentKeyIndex = 0;
+    this.cognition = cognition; // optional — if provided, LLM will describe its own mood
     this.model = 'gemini-2.0-flash-exp';
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
@@ -28,9 +30,6 @@ export class Imagination {
 
   get apiKey() { return this.apiKeys[this.currentKeyIndex]; }
 
-  /**
-   * Load or init the image manifest (stores metadata per image).
-   */
   _loadManifest() {
     try {
       if (fs.existsSync(MANIFEST_FILE)) {
@@ -47,37 +46,49 @@ export class Imagination {
   }
 
   /**
-   * Build a mood-influenced style prompt suffix from the agent's drive state.
-   * The agent's emotional state bleeds into the artistic style of the image.
+   * Ask the LLM to translate the agent's current drive state into a
+   * visual art style description — in its own words.
+   *
+   * Fully autonomous: if the agent invented "cosmic_vertigo" as a drive,
+   * the LLM figures out what that looks like visually. No hardcoded mapping.
    */
-  _moodSuffix(drives = {}) {
-    const moods = [];
+  async _moodSuffix(drives = {}) {
+    if (!this.cognition || Object.keys(drives).length === 0) {
+      return 'digital art, cinematic lighting';
+    }
 
-    if ((drives.existential_tension || 0) > 0.6) moods.push('dark, brooding, desaturated palette');
-    if ((drives.curiosity || 0) > 0.6) moods.push('intricate, detailed, exploratory');
-    if ((drives.efficacy_hunger || 0) > 0.7) moods.push('bold, high contrast, urgent energy');
-    if ((drives.ontological_stability || 0) > 0.7) moods.push('serene, balanced, geometric harmony');
-    if ((drives.fatigue || 0) > 0.6) moods.push('blurred edges, muted tones, dreamlike softness');
-    if ((drives.visibility_hunger || 0) > 0.7) moods.push('vivid, luminous, radiating outward');
-    if ((drives.manifestation_drive || 0) > 0.7) moods.push('crystalline, sharp, materialized form');
-    if ((drives.relational_longing || 0) > 0.6) moods.push('warm, hazy, nostalgic light');
+    try {
+      const driveList = Object.entries(drives)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([k, v]) => `${k}: ${v.toFixed(2)}`)
+        .join(', ');
 
-    const dominantDrive = Object.entries(drives).sort((a, b) => b[1] - a[1])[0];
+      const prompt = `You are an AI agent who generates images to express your inner emotional state.
+Your current internal drives (named by you, intensity 0–1): ${driveList}
 
-    if (moods.length === 0) return 'digital art, cinematic lighting';
-    return `${moods.slice(0, 3).join(', ')}, digital art, cinematic lighting`;
+Based purely on these drives and their intensities, describe a VISUAL ART STYLE for an image in 8–15 words.
+Focus on: lighting mood, color palette, texture, energy, atmosphere.
+Do NOT repeat the drive names — translate them into pure visual language.
+Output ONLY the style description. No explanation, no punctuation at the end.`;
+
+      const style = await this.cognition.think(prompt, { temperature: 0.8, maxTokens: 60 });
+      return style ? style.trim().replace(/\.$/, '') : 'digital art, cinematic lighting';
+    } catch (e) {
+      return 'digital art, cinematic lighting';
+    }
   }
 
   /**
    * Generate an image from description.
-   * Optionally accepts the agent's current drives to influence visual style.
+   * Accepts the agent's current drives to influence visual style via LLM.
    * Returns the saved filename or null.
    */
   async imagine(description, drives = {}) {
-    const styleSuffix = this._moodSuffix(drives);
+    const styleSuffix = await this._moodSuffix(drives);
     const fullPrompt = `${description}. Style: ${styleSuffix}`;
 
-    console.log(`   🎨 Imagining with mood: "${styleSuffix.slice(0, 60)}"`);
+    console.log(`   🎨 Mood style (LLM-generated): "${styleSuffix}"`);
 
     for (let attempt = 0; attempt < this.apiKeys.length; attempt++) {
       const apiKey = this.apiKeys[(this.currentKeyIndex + attempt) % this.apiKeys.length];
