@@ -225,6 +225,24 @@ export class Heartbeat {
                     }
                   }
                 }
+              } else if (action.type === 'update_relationship') {
+                const entityId = action.entity_id;
+                if (entityId && this.brain.relationships) {
+                  console.log(`   🤝 Updating relationship with ${entityId}: Trust ${action.trust_level}`);
+                  const updates = {};
+                  if (action.trust_level !== undefined) updates.trust_level = action.trust_level;
+                  if (action.sentiment !== undefined) updates.sentiment = action.sentiment;
+                  if (action.summary !== undefined) updates.summary = action.summary;
+                  
+                  await this.brain.relationships.update(entityId, updates);
+                  this.brain.memory.record({
+                    content: `I updated my mental model of ${entityId}. Summary: "${updates.summary || 'no summary'}". Trust: ${updates.trust_level || 'unchanged'}. Reason: ${action.reason || 'none'}`,
+                    tags: ['relationship', entityId],
+                    significance: 0.6,
+                  });
+                  this.brain.logActivity('update_relationship', `${entityId} - ${action.reason || 'no reason'}`);
+                }
+
               } else {
                 await adapter.execute(action, this.brain);
               }

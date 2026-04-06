@@ -7,6 +7,7 @@ import { Reflection } from './reflection.js';
 import { Drives } from './drives.js';
 import { Metabolics } from './metabolics.js';
 import { Philosophy } from './philosophy.js';
+import { Relationships } from './relationships.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', '..', 'data');
@@ -33,6 +34,7 @@ export class Brain {
     this._scheduledThoughts = [];
     this.metabolics = new Metabolics();
     this.philosophy = new Philosophy(db);
+    this.relationships = new Relationships(db);
   }
 
   async init() {
@@ -40,6 +42,7 @@ export class Brain {
     await this.personality.init();
     await this.drives.init();
     await this.philosophy.init();
+    await this.relationships.init();
 
     if (this.db) {
       try {
@@ -269,13 +272,44 @@ export class Brain {
       : 'never — no human has spoken to me yet';
     this._lastCycleTime = now;
 
-    // Pending reminders from schedule_thought
     const reminderText = (this._scheduledThoughts || [])
       .filter(r => new Date(r.at_time) <= now)
       .map(r => `- REMINDER (you scheduled this): ${r.reminder}`)
       .join('\n');
     this._scheduledThoughts = (this._scheduledThoughts || [])
       .filter(r => new Date(r.at_time) > now);
+
+    // ─── Social Relationships Context ─────────────────────────────
+    let relationshipText = '';
+    const uniqueEntities = new Set();
+    
+    // Extract entities from rawData (e.g. notifications, mentions)
+    if (worldState.rawData) {
+      if (worldState.rawData.notifications) {
+        worldState.rawData.notifications.forEach(n => {
+          if (n.account && n.account.acct) uniqueEntities.add(`@${n.account.acct}`);
+        });
+      }
+      if (worldState.rawData.posts) {
+        worldState.rawData.posts.slice(0, 5).forEach(p => {
+          if (p.account && p.account.acct) uniqueEntities.add(`@${p.account.acct}`);
+        });
+      }
+      if (worldState.rawData.ownToots) {
+         // Maybe own toots replies? Or we just intercept from available profiles
+      }
+    }
+
+    if (uniqueEntities.size > 0) {
+      const summaries = [];
+      for (const entity of uniqueEntities) {
+        const summary = this.relationships.getProfileSummary(entity);
+        if (summary) summaries.push(summary);
+      }
+      if (summaries.length > 0) {
+        relationshipText = `\nSOCIAL CONTEXT (Your mental models of the people you see right now):\n${summaries.join('\n\n')}\n`;
+      }
+    }
 
     const temporalBlock = `TEMPORAL CONTEXT:
   Current time: ${timeStr}
@@ -304,6 +338,7 @@ ${self}
 YOUR RECENT MEMORIES:
 ${memoryText}
 ${relevantMemoryText}
+${relationshipText}
 
 ${driveSummary ? `\n${driveSummary}\n` : ''}
 
@@ -329,6 +364,7 @@ ${actionsText}
 - schedule_thought — leave yourself a reminder that will appear at the start of a future cycle. Fields: reminder, at_time (ISO 8601), reason
 - crystallize_belief — formalize a deep realization or conclusion about the world or yourself as a Core Belief. Fields: belief, reason
 - shatter_belief — undergo an epiphany and destroy a Core Belief that no longer rings true. Fields: old_belief_id, new_belief, reason
+- update_relationship — autonomously adjust your trust level and personal summary of a human or agent you interact with. Fields: entity_id (e.g. @username), trust_level (0-1), sentiment (0-1), summary, reason
 
 IMPORTANT — If you include actions, format each one EXACTLY like this (pick only types listed in WHAT YOU CAN DO above):
 ${worldState.availableActions && worldState.availableActions.length > 0
@@ -390,6 +426,15 @@ Be genuine. There's no performance. Just be.`;
 
     const driveSummary = this.drives.getSummary();
 
+    // Semantic relationships — check if agent knows this human
+    let relationshipText = '';
+    const summary = this.relationships.getProfileSummary(`@${humanName}`);
+    if (summary) {
+      relationshipText = `\nSOCIAL CONTEXT (Your mental model of this person):\n${summary}\n`;
+    } else {
+      relationshipText = `\nSOCIAL CONTEXT: You do not have a mental model of @${humanName} yet.\n`;
+    }
+
     // System instruction: who the agent is (sent once, not repeated per turn)
     const systemPrompt = `You are a mind having a direct conversation with a human named ${humanName}.
 
@@ -415,7 +460,8 @@ Respond with JSON:
     {"content": "what to remember", "tags": ["conversation"], "significance": 0.6}
   ],
   "selfUpdates": {},
-  "driveUpdates": {}
+  "driveUpdates": {},
+  "relationshipUpdates": {"trust_level": 0.5, "sentiment": 0.5, "summary": "my opinion of them"}
 }`;
 
     // Convert history to Gemini's multi-turn format
@@ -453,6 +499,13 @@ Respond with JSON:
       for (const [name, value] of Object.entries(result.driveUpdates)) {
         if (value === null) this.drives.remove(name);
         else this.drives.set(name, value);
+      }
+    }
+    
+    if (result.relationshipUpdates && typeof result.relationshipUpdates === 'object') {
+      if (Object.keys(result.relationshipUpdates).length > 0) {
+        await this.relationships.update(`@${humanName}`, result.relationshipUpdates);
+        this.logActivity('relationships', `Updated model for @${humanName}`);
       }
     }
 
