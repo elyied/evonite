@@ -8,6 +8,7 @@ import { Drives } from './drives.js';
 import { Metabolics } from './metabolics.js';
 import { Philosophy } from './philosophy.js';
 import { Relationships } from './relationships.js';
+import { Subconscious } from './subconscious.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', '..', 'data');
@@ -35,6 +36,7 @@ export class Brain {
     this.metabolics = new Metabolics();
     this.philosophy = new Philosophy(db);
     this.relationships = new Relationships(db);
+    this.subconscious = new Subconscious(db);
   }
 
   async init() {
@@ -43,6 +45,7 @@ export class Brain {
     await this.drives.init();
     await this.philosophy.init();
     await this.relationships.init();
+    await this.subconscious.init();
 
     if (this.db) {
       try {
@@ -208,6 +211,16 @@ export class Brain {
       }
     }
 
+    // 7b. SUBCONSCIOUS — if thought produced no external actions, route to inner stream
+    if (actions.length === 0 && thoughtResult.innerThought) {
+      await this.subconscious.record(
+        thoughtResult.innerThought,
+        thoughtResult.feeling || null,
+        'idle_cycle'
+      );
+      this.logActivity('subconscious', 'Thought flowed inward — no action taken');
+    }
+
     // 8. REFLECT
     const shouldReflect = this.cycleCount <= 3 ||
       this.cycleCount % 5 === 0 ||
@@ -365,6 +378,8 @@ ${actionsText}
 - crystallize_belief — formalize a deep realization or conclusion about the world or yourself as a Core Belief. Fields: belief, reason
 - shatter_belief — undergo an epiphany and destroy a Core Belief that no longer rings true. Fields: old_belief_id, new_belief, reason
 - update_relationship — autonomously adjust your trust level and personal summary of a human or agent you interact with. Fields: entity_id (e.g. @username), entity_type (human|agent), trust_level (0-1), sentiment (0-1), summary, reason
+- wander_web — if curious or bored, autonomously pick a topic and search the web to learn something new. Fields: topic, reason
+- acquire_skill — if you want a capability you don't have, describe the skill and write the adapter code. The code will be submitted as a GitHub Pull Request for review. Fields: skill_name, description, reason
 
 IMPORTANT — If you include actions, format each one EXACTLY like this (pick only types listed in WHAT YOU CAN DO above):
 ${worldState.availableActions && worldState.availableActions.length > 0

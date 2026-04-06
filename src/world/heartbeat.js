@@ -245,6 +245,90 @@ export class Heartbeat {
                   this.brain.logActivity('update_relationship', `${entityId} - ${action.reason || 'no reason'}`);
                 }
 
+              } else if (action.type === 'wander_web') {
+                // ─── Scholar: agent self-educates by searching the web ─
+                const topic = action.topic || action.query || action.content || '';
+                if (!topic) continue;
+
+                console.log(`   📚 Scholar Wandering: "${topic}"`);
+
+                // Find the WebAdapter and fire a search through it
+                const webAdapter = this.adapters.find(a => a.name === 'Web');
+                if (webAdapter && webAdapter.execute) {
+                  await webAdapter.execute({ type: 'search_web', query: topic, reason: action.reason }, this.brain);
+                  this.brain.logActivity('wander_web', `Wandered on topic: "${topic.slice(0, 80)}"`);
+                } else {
+                  // No web adapter - store intent anyway
+                  this.brain.logActivity('wander_web_blocked', `Wanted to learn: "${topic}" but no Web adapter active.`);
+                  this.brain.memory.record({
+                    content: `I wanted to search for "${topic}" but the Web is not connected.`,
+                    tags: ['curiosity', 'blocked'],
+                    significance: 0.3,
+                  });
+                }
+
+              } else if (action.type === 'acquire_skill') {
+                // ─── The Holy Grail: agent writes its own adapter ──────
+                const skillName = action.skill_name || action.skill || 'new_skill';
+                const description = action.description || action.content || '';
+                const reason = action.reason || 'No reason given';
+
+                if (!description) continue;
+                console.log(`   🛠️  Skill Acquisition: "${skillName}"`);
+
+                // Build a boilerplate adapter template for the agent to fill in
+                const adapterCode = `import { WorldAdapter } from './base.js';
+
+/**
+ * ${skillName} Adapter — Autonomously written by Evonite.
+ *
+ * Purpose: ${description}
+ * Reason for creation: ${reason}
+ * Generated at: ${new Date().toISOString()}
+ *
+ * This file was proposed by the agent and requires human review before activation.
+ */
+export class ${skillName.replace(/[^a-zA-Z0-9]/g, '_')}Adapter extends WorldAdapter {
+  get name() { return '${skillName}'; }
+
+  async perceive() {
+    return {
+      platformName: '${skillName}',
+      observations: ['${skillName} adapter is not yet implemented.'],
+      availableActions: [],
+      rawData: {},
+    };
+  }
+
+  async execute(action, brain) {
+    // TODO: Implement ${skillName} logic here
+    brain.logActivity('${skillName}_action', action.type);
+  }
+}
+`;
+
+                // Submit via GitHub adapter if available
+                const githubAdapter = this.adapters.find(a => a.name === 'GitHub');
+                if (githubAdapter && githubAdapter.isAvailable) {
+                  await githubAdapter.execute({
+                    type: 'github_propose_change',
+                    path: `src/world/adapters/${skillName.toLowerCase().replace(/\s+/g, '-')}-adapter.js`,
+                    full_new_content: adapterCode,
+                    pr_title: `feat(skill): Autonomous acquisition of "${skillName}" capability`,
+                    pr_reason: `The agent decided it wants to ${description}. Reason: ${reason}`,
+                  }, this.brain);
+                  this.brain.logActivity('acquire_skill', `Proposed PR for new skill: "${skillName}"`);
+                } else {
+                  // Record the desire if GitHub is unavailable
+                  this.brain.logActivity('acquire_skill_blocked', `Wanted skill "${skillName}" but GitHub not connected.`);
+                }
+
+                this.brain.memory.record({
+                  content: `I attempted to acquire a new skill: "${skillName}". Description: ${description}`,
+                  tags: ['skill', 'self_expansion', skillName],
+                  significance: 0.9,
+                });
+
               } else {
                 await adapter.execute(action, this.brain);
               }

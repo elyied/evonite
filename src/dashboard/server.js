@@ -65,6 +65,17 @@ export function startDashboard(brain, imagination, heartbeat, port = 3333) {
     res.json(brain.philosophy.beliefs || []);
   });
 
+  // API: Subconscious stream (private inner thoughts)
+  app.get('/api/subconscious', auth, (req, res) => {
+    const limit = parseInt(req.query.limit || '50', 10);
+    res.json(brain.subconscious ? brain.subconscious.getRecent(limit) : []);
+  });
+
+  // API: Relationships (social reputation map)
+  app.get('/api/relationships', auth, (req, res) => {
+    res.json(brain.relationships ? brain.relationships.entities : {});
+  });
+
   // API: Generated images
   app.get('/api/images', auth, (req, res) => {
     res.json(imagination ? imagination.listImages() : []);
