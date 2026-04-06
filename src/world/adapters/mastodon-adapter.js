@@ -22,6 +22,7 @@ export class MastodonAdapter extends WorldAdapter {
     this.hasToken = !!accessToken && !!instanceUrl;
     this._profile = null;
     this.pendingSearchResults = []; // search results waiting to be shown next cycle
+    this.pendingThreads = []; // threads waiting to be read next cycle
   }
 
   get name() { return 'Mastodon'; }
@@ -59,6 +60,23 @@ export class MastodonAdapter extends WorldAdapter {
         }
       }
       this.pendingSearchResults = [];
+    }
+
+    // Surface any pending thread views from last cycle
+    if (this.pendingThreads.length > 0) {
+      observations.push(`--- MASTODON THREAD CONTEXT (from your request to view thread) ---`);
+      for (const t of this.pendingThreads) {
+        observations.push(`[Thread for Status ID: ${t.statusId}]`);
+        if (t.replies.length === 0) {
+          observations.push(`  • There are no replies to this toot yet.`);
+        } else {
+          for (const r of t.replies) {
+            const isSelf = this._profile && r.account?.acct === (this._profile.acct || this._profile.username);
+            observations.push(`  • [ID:${r.id}] @${r.account?.acct} ${isSelf ? '(YOUR OWN REPLY)' : ''}: "${stripHtml(r.content).slice(0, 150)}"`);
+          }
+        }
+      }
+      this.pendingThreads = [];
     }
 
     // Run all API calls in parallel with individual timeouts
@@ -327,17 +345,26 @@ export class MastodonAdapter extends WorldAdapter {
       const context = await this.client.getTootContext(statusId);
       if (context && !context.error) {
         const descendants = context.descendants || [];
-        const summary = descendants.slice(0, 5).map(r =>
-          `@${r.account?.acct}: "${stripHtml(r.content).slice(0, 100)}"`
-        ).join(' | ');
-        brain.logActivity('mastodon_view_thread', `${statusId}: ${descendants.length} replies`);
-        if (summary) {
-          brain.memory.record({
-            content: `Thread on toot ${statusId}: ${summary}`,
-            tags: ['mastodon', 'thread'],
-            significance: 0.4,
-          });
-        }
+        
+        // Queue thread to surface in NEXT perception cycle
+        this.pendingThreads.push({
+          statusId,
+          replies: descendants
+        });
+
+        const summary = descendants.slice(0, 5).map(r => {
+          const isSelf = this._profile && r.account?.acct === (this._profile.acct || this._profile.username);
+          return `@${r.account?.acct}${isSelf ? '(you)' : ''}: "${stripHtml(r.content).slice(0, 50)}"`;
+        }).join(' | ');
+
+        brain.logActivity('mastodon_view_thread', `${statusId}: ${descendants.length} replies queued for next cycle`);
+        
+        // Still save it to memory so it has a permanent record
+        brain.memory.record({
+          content: `I investigated toot ${statusId}. It has ${descendants.length} replies: ${summary || 'None.'}`,
+          tags: ['mastodon', 'thread'],
+          significance: 0.4,
+        });
       }
 
     // ─── Passive ───────────────────────────────────────────
