@@ -14,6 +14,7 @@ export class Heartbeat {
     this.isRunning = false;
     this.lastBeat = null;
     this.pendingMessages = []; // messages the agent wants to send to the human
+    this.sleepUntil = null;   // ISO timestamp — agent chose to hibernate until this time
   }
 
   /**
@@ -45,7 +46,7 @@ export class Heartbeat {
   }
 
   stop() {
-    if (this.timer) clearTimeout(this.timer); // ← was clearInterval, now clearTimeout
+    if (this.timer) clearTimeout(this.timer);
     this.isRunning = false;
     console.log('\n💤 Heartbeat stopped.\n');
   }
@@ -55,8 +56,25 @@ export class Heartbeat {
   }
 
   async _beat() {
+    const now = new Date();
+    
+    // ─── Respect sleep_until ──────────────────────────────
+    if (this.sleepUntil) {
+      const wakeTime = new Date(this.sleepUntil);
+      if (now < wakeTime) {
+        const minsLeft = Math.round((wakeTime - now) / 60000);
+        console.log(`\n💤 Agent is resting. Wakes up in ~${minsLeft} minutes (at ${wakeTime.toLocaleTimeString()}).\n`);
+        this.brain.logActivity('sleeping', `Resting until ${this.sleepUntil} (~${minsLeft}m left)`);
+        return; // Skip this beat entirely
+      } else {
+        console.log(`\n🌅 Agent woke up from scheduled rest.`);
+        this.brain.logActivity('wake_up', `Resumed from sleep at ${now.toISOString()}`);
+        this.sleepUntil = null;
+      }
+    }
+
     const beatStart = Date.now();
-    this.lastBeat = new Date().toISOString();
+    this.lastBeat = now.toISOString();
 
     // Increment cycle count ONCE per heartbeat, not once per adapter
     this.brain.cycleCount++;
@@ -88,6 +106,7 @@ export class Heartbeat {
                   });
                   this.brain.logActivity('imagined', action.description);
                 }
+
               } else if (action.type === 'message_human') {
                 const msgText = action.text || action.message || action.content || '';
                 if (!msgText) continue;
@@ -104,6 +123,40 @@ export class Heartbeat {
                   significance: 0.7,
                 });
                 this.brain.logActivity('message_human', msgText.slice(0, 100));
+
+              } else if (action.type === 'sleep_until') {
+                // ─── Agent chose to hibernate ──────────────────
+                const isoTime = action.iso_time || action.until || action.time;
+                if (!isoTime) continue;
+                const wakeDate = new Date(isoTime);
+                if (isNaN(wakeDate.getTime())) {
+                  console.log(`   ⚠️  sleep_until: invalid time "${isoTime}", ignoring.`);
+                  continue;
+                }
+                this.sleepUntil = wakeDate.toISOString();
+                console.log(`   💤 Agent chose to rest until ${wakeDate.toLocaleString()}`);
+                this.brain.logActivity('sleep_until', `Resting until ${this.sleepUntil} — ${action.reason || 'no reason given'}`);
+                this.brain.memory.record({
+                  content: `I chose to hibernate until ${wakeDate.toLocaleString()} because: ${action.reason || 'I felt like it was time to rest.'}`,
+                  tags: ['rest', 'temporal', 'intention'],
+                  significance: 0.5,
+                });
+
+              } else if (action.type === 'schedule_thought') {
+                // ─── Agent scheduled a reminder for itself ─────
+                const reminder = action.reminder || action.text || '';
+                const atTime = action.at_time || action.time;
+                if (!reminder || !atTime) continue;
+                const reminderDate = new Date(atTime);
+                if (isNaN(reminderDate.getTime())) {
+                  console.log(`   ⚠️  schedule_thought: invalid time "${atTime}", ignoring.`);
+                  continue;
+                }
+                
+                if (!this.brain._scheduledThoughts) this.brain._scheduledThoughts = [];
+                this.brain._scheduledThoughts.push({ reminder, at_time: reminderDate.toISOString() });
+                console.log(`   🗓️  Agent scheduled a thought for ${reminderDate.toLocaleString()}: "${reminder.slice(0, 60)}"`);
+                this.brain.logActivity('schedule_thought', `Reminder at ${reminderDate.toLocaleString()}: ${reminder.slice(0, 80)}`);
 
               } else if (action.type === 'change_identity') {
                 console.log(`\n   🪞 Metamorphosis triggered. Adopting new identity: ${action.new_name || '?'}`);
@@ -126,7 +179,6 @@ export class Heartbeat {
                   });
                   this.brain.logActivity('metamorphosis', `New identity assumed: ${action.new_name || 'avatar update'}`);
 
-                  // ✅ Fix: broadcast identity to ALL adapters, not just the current one
                   const pState = this.brain.personality.getState();
                   const serviceUrl = process.env.SERVICE_URL || process.env.RENDER_EXTERNAL_URL || 'https://evonite.onrender.com';
                   const avatarAbsUrl = pState.avatarUrl ? `${serviceUrl}${pState.avatarUrl}` : null;
@@ -155,3 +207,4 @@ export class Heartbeat {
     }
   }
 }
+

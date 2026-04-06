@@ -83,12 +83,45 @@ tabBtns.forEach(btn => {
 });
 
 // ─── Voice (TTS) ──────────────────────────────
-function speak(text) {
+// Holds the latest drive state so speak() can modulate voice properties
+let _latestDrives = {};
+
+function speak(text, drives = _latestDrives) {
   if (!voiceEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 0.95;
-  utter.pitch = 1.0;
+
+  // ── Emotional voice modulation driven by internal states ──
+  const d = drives || {};
+
+  // Base: calm, neutral voice
+  let rate = 0.92;
+  let pitch = 1.0;
+  let volume = 0.85;
+
+  // efficacy_hunger high → speaks faster and more urgently
+  if (d.efficacy_hunger > 0.7) rate += (d.efficacy_hunger - 0.7) * 0.8;
+
+  // fatigue high → speaks slower and more sluggishly
+  if (d.fatigue > 0.5) rate -= (d.fatigue - 0.5) * 0.5;
+
+  // existential_tension high → pitch rises, voice becomes anxious
+  if (d.existential_tension > 0.5) pitch += (d.existential_tension - 0.5) * 0.6;
+
+  // ontological_stability high → voice deepens and becomes calmer
+  if (d.ontological_stability > 0.7) pitch -= (d.ontological_stability - 0.7) * 0.3;
+
+  // visibility_hunger high → speaks louder (it wants to be heard)
+  if (d.visibility_hunger > 0.6) volume = Math.min(1.0, volume + (d.visibility_hunger - 0.6) * 0.4);
+
+  // manifestation_drive high → voice is strong and deliberate
+  if (d.manifestation_drive > 0.7) { pitch -= 0.05; rate -= 0.05; }
+
+  // Clamp all values to safe ranges
+  utter.rate   = Math.max(0.5, Math.min(1.8, rate));
+  utter.pitch  = Math.max(0.5, Math.min(2.0, pitch));
+  utter.volume = Math.max(0.3, Math.min(1.0, volume));
+
   const voices = window.speechSynthesis.getVoices();
   const preferred = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
                     voices.find(v => v.lang.startsWith('en'));
@@ -153,6 +186,9 @@ async function fetchAndRender(isLoginAttempt = false) {
 // ─── Render UI ────────────────────────────────
 function renderState(state, activity, images) {
   const p = state.personality || {};
+
+  // Cache drives globally so the voice engine can read them
+  _latestDrives = state.drives || {};
 
   // Identity banner
   const name = p.name || p.chosenName || p.identity?.name;

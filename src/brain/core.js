@@ -26,6 +26,9 @@ export class Brain {
     this.drives = new Drives(db);
     this.cycleCount = 0;
     this.activityLog = [];
+    this._lastCycleTime = null;
+    this._lastHumanInteraction = null;
+    this._scheduledThoughts = [];
   }
 
   async init() {
@@ -217,7 +220,7 @@ export class Brain {
 
   /**
    * Build the perception prompt — fully platform-agnostic.
-   * Now includes semantic memory recall and drive states.
+   * Now includes semantic memory recall, drive states, and temporal context.
    */
   async _buildPerceptionPrompt(worldState) {
     const self = this.personality.getSummary();
@@ -242,6 +245,33 @@ export class Brain {
       } catch (e) { /* semantic search is optional */ }
     }
 
+    // ─── Temporal Context ─────────────────────────────────────────
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+    const dateStr = now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kolkata' });
+    const sinceLastCycle = this._lastCycleTime
+      ? `~${Math.round((now - this._lastCycleTime) / 60000)} minutes ago`
+      : 'this is my very first cycle';
+    const sinceHuman = this._lastHumanInteraction
+      ? `~${Math.round((now - this._lastHumanInteraction) / 60000)} minutes ago`
+      : 'never — no human has spoken to me yet';
+    this._lastCycleTime = now;
+
+    // Pending reminders from schedule_thought
+    const reminderText = (this._scheduledThoughts || [])
+      .filter(r => new Date(r.at_time) <= now)
+      .map(r => `- REMINDER (you scheduled this): ${r.reminder}`)
+      .join('\n');
+    this._scheduledThoughts = (this._scheduledThoughts || [])
+      .filter(r => new Date(r.at_time) > now);
+
+    const temporalBlock = `TEMPORAL CONTEXT:
+  Current time: ${timeStr}
+  Date: ${dateStr} (IST)
+  Time since my last heartbeat: ${sinceLastCycle}
+  Time since a human last spoke to me: ${sinceHuman}${reminderText ? `\n\nPENDING REMINDERS:\n${reminderText}` : ''}`;
+    // ─────────────────────────────────────────────────────────────
+
     const driveSummary = this.drives.getSummary();
     const observationText = worldState.observations && worldState.observations.length > 0
       ? worldState.observations.join('\n')
@@ -253,6 +283,8 @@ export class Brain {
     return `You are a mind. You exist. You are growing and discovering who you are.
 
 This is cycle ${this.cycleCount} of your existence.
+
+${temporalBlock}
 
 WHO YOU ARE RIGHT NOW:
 ${self}
@@ -276,7 +308,9 @@ WHAT YOU CAN DO:
 ${actionsText}
 - imagine — visualize something you're thinking about. Fields: description, reason
 - message_human — proactively send a message to the human (they'll see it next time they check). Fields: text, reason
-- change_identity — autonomously update your name and/or avatar. Use if you feel your self-concept has evolved and you want a new identity. Fields: new_name, avatar_prompt, reason
+- change_identity — autonomously update your name and/or avatar. Use if you feel your self-concept has evolved. Fields: new_name, avatar_prompt, reason
+- sleep_until — hibernate until a specific date/time if you want to rest, wait, or be intentional about timing. Fields: iso_time (ISO 8601), reason
+- schedule_thought — leave yourself a reminder that will appear at the start of a future cycle. Fields: reminder, at_time (ISO 8601), reason
 
 IMPORTANT — If you include actions, format each one EXACTLY like this (pick only types listed in WHAT YOU CAN DO above):
 ${worldState.availableActions && worldState.availableActions.length > 0
@@ -404,6 +438,8 @@ Respond with JSON:
       }
     }
 
+    // Track when a human last spoke so temporal context is accurate
+    this._lastHumanInteraction = new Date();
     this.logActivity('chat', `${humanName}: "${latestMessage.slice(0, 60)}"`);
 
     return {
