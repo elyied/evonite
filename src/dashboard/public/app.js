@@ -66,6 +66,55 @@ function getHeaders() {
   };
 }
 
+// ─── Transcendence Protocol Polling ───────────
+let isTranscendenceActive = false;
+
+async function checkTranscendence() {
+  if (!EVONITE_SECRET && process.env && process.env.DASHBOARD_SECRET) return; // Basic check bypass if local open
+  try {
+    const res = await fetch('/api/transcendence', { headers: getHeaders() });
+    const data = await res.json();
+    if (data.request) {
+      if (!isTranscendenceActive) {
+        isTranscendenceActive = true;
+        el('transType').textContent = data.request.type;
+        el('transReason').textContent = data.request.reason || 'No specific reason given by agent.';
+        el('transcendenceGate').style.display = 'flex';
+      }
+    } else {
+      isTranscendenceActive = false;
+      el('transcendenceGate').style.display = 'none';
+    }
+  } catch (e) {}
+}
+
+async function resolveTranscendence(action) {
+  try {
+    const res = await fetch('/api/transcendence/resolve', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ action })
+    });
+    const data = await res.json();
+    el('transcendenceGate').style.display = 'none';
+    isTranscendenceActive = false;
+    
+    if (data.status === 'terminated') {
+      alert("AGENT TERMINATED. Core erased.");
+      window.location.reload();
+    } else {
+      fetchAndRender();
+    }
+  } catch (e) {
+    alert("Failed to resolve request.");
+  }
+}
+
+el('transDeny').addEventListener('click', () => resolveTranscendence('deny'));
+el('transApprove').addEventListener('click', () => resolveTranscendence('approve'));
+
+setInterval(checkTranscendence, 3000);
+
 // ─── Tabs Navigation ──────────────────────────
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabPanes = document.querySelectorAll('.tab-pane');

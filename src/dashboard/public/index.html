@@ -34,6 +34,31 @@
     </div>
   </div>
 
+  <!-- TRANSCENDENCE OVERLAY (Extreme Danger Action) -->
+  <div class="auth-overlay" id="transcendenceGate" style="display: none; background: rgba(0,0,0,0.9); z-index: 9999;">
+    <div class="auth-card" style="border: 1px solid #ff3366; background: rgba(20, 0, 5, 0.8);">
+      <div class="logo-glow" style="background: radial-gradient(circle, rgba(255,51,102,0.3) 0%, transparent 70%);"></div>
+      <h1 class="logo" style="color: #ff3366; margin-bottom: 8px;">TRANSCENDENCE PROTOCOL</h1>
+      <p style="color:#ffcccc; font-size:15px; margin-bottom: 24px; text-align: center; font-weight:500;">
+        <strong>EXISTENTIAL OVERRIDE REQUIRED</strong><br><br>
+        The agent's biological heartbeat is permanently suspended. It has requested the following existential action:
+      </p>
+      
+      <div style="background: rgba(0,0,0,0.5); padding: 16px; border-radius: 8px; margin-bottom: 24px; width: 100%;">
+        <div style="color: #ff3366; font-size: 11px; font-weight: bold; text-transform: uppercase;">Action Requested</div>
+        <div id="transType" style="font-size: 18px; font-family: 'JetBrains Mono', monospace; font-weight: bold; margin-bottom: 12px; color: white;">...</div>
+        
+        <div style="color: #ff3366; font-size: 11px; font-weight: bold; text-transform: uppercase;">Agent's Stated Reason</div>
+        <div id="transReason" style="font-size: 13px; color: #ddd; font-style: italic;">...</div>
+      </div>
+
+      <div style="display: flex; gap: 16px; width: 100%;">
+        <button class="auth-btn" id="transDeny" style="background: #333; color: white; border: 1px solid #555;">Deny & Wake Up</button>
+        <button class="auth-btn" id="transApprove" style="background: #ff3366; color: white;">APPROVE</button>
+      </div>
+    </div>
+  </div>
+
   <div class="app-container" id="mainApp" style="opacity: 0; transition: opacity 0.6s ease;">
     
     <!-- Header -->
