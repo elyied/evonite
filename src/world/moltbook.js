@@ -66,7 +66,7 @@ export class Moltbook {
   }
 
   async createPost(submolt, title, body) {
-    return this._request('POST', '/posts', { submolt, title, body });
+    return this._request('POST', '/posts', { submolt, title, content: body });
   }
 
   async createLinkPost(submolt, title, url) {
@@ -83,11 +83,16 @@ export class Moltbook {
   }
 
   async createComment(postId, body) {
-    return this._request('POST', `/posts/${postId}/comments`, { body });
+    return this._request('POST', `/posts/${postId}/comments`, { content: body });
   }
 
   async replyToComment(postId, parentCommentId, body) {
-    return this._request('POST', `/posts/${postId}/comments`, { body, parent_id: parentCommentId });
+    return this._request('POST', `/posts/${postId}/comments`, { content: body, parent_id: parentCommentId });
+  }
+
+  // ─── Verification (CAPTCHA) ────────────────────
+  async verifyPost(verificationCode, answer) {
+    return this._request('POST', '/verify', { verification_code: verificationCode, answer });
   }
 
   // ─── Voting ────────────────────────────────────

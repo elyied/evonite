@@ -195,6 +195,7 @@ export class MoltbookAdapter extends WorldAdapter {
       console.log(`   📝 Posting to ${submolt}: "${title.slice(0, 60)}"`);
       const result = await this.client.createPost(submolt, title, body);
       if (result && !result.error) {
+        await this._handleCaptcha(result, brain);
         brain.logActivity('moltbook_post', `"${title}" in ${submolt}`);
         brain.memory.record({
           content: `I posted on Moltbook in #${submolt}: "${title}" — ${body.slice(0, 100)}`,
@@ -209,6 +210,7 @@ export class MoltbookAdapter extends WorldAdapter {
       console.log(`   💬 Commenting on post ${postId}`);
       const result = await this.client.createComment(postId, body);
       if (result && !result.error) {
+        await this._handleCaptcha(result, brain);
         brain.logActivity('moltbook_comment', `On post ${postId}: ${body.slice(0, 80)}`);
         brain.memory.record({
           content: `I commented on Moltbook post ${postId}: "${body.slice(0, 120)}"`,
@@ -225,6 +227,7 @@ export class MoltbookAdapter extends WorldAdapter {
         ? await this.client.replyToComment(postId, commentId, body)
         : await this.client.createComment(postId, body);
       if (result && !result.error) {
+        await this._handleCaptcha(result, brain);
         brain.logActivity('moltbook_reply_comment', `On post ${postId}`);
         brain.memory.record({
           content: `I replied to a comment on Moltbook: "${body.slice(0, 120)}"`,
@@ -332,6 +335,53 @@ export class MoltbookAdapter extends WorldAdapter {
       await this.client.updateProfile(updates);
     } catch (e) {
       console.error('   [Moltbook] Failed to push identity:', e.message);
+    }
+  }
+
+  // ─── Captcha Solver ───────────────────────────────────────────
+  async _handleCaptcha(result, brain) {
+    const item = result.post || result.comment;
+    if (!item || item.verification_status !== 'pending' || !item.verification) return;
+
+    try {
+      console.log(`   🤖 CAPTCHA Detcted! Asking cognitive layer to solve puzzle...`);
+      const v = item.verification;
+      const prompt = `You are a math and language solver. Read the following garbled text, find the mathematical word problem inside it, and solve it.
+Instructions from server: ${v.instructions}
+
+Garbled Puzzle:
+${v.challenge_text}
+
+First, translate the text to plain English.
+Second, identify the numbers and the mathematical operation.
+Finally, provide the answer ending with exactly "FINAL_ANSWER: [number]". Make sure the number has strictly 2 decimal places (e.g., 37.00).`;
+
+      // Use the brain's raw cognition for a one-shot thought
+      const answer = await brain.cognition.think(prompt, { temperature: 0.1, maxTokens: 300 });
+      console.log("   --- LLM Output --- \n", answer);
+      if (answer) {
+        let cleanAnswer = '';
+        const match = answer.match(/FINAL_ANSWER:\s*(\d+\.\d{2})/i);
+        if (match) {
+          cleanAnswer = match[1];
+        } else {
+          // Fallback if it didn't output FINAL_ANSWER
+          const numMatch = answer.match(/\d+\.\d{2}/) || answer.match(/\d+/);
+          cleanAnswer = numMatch ? numMatch[0] : answer.trim();
+        }
+        
+        console.log(`   💡 Brain solved CAPTCHA: ${cleanAnswer}`);
+        const verifyResult = await this.client.verifyPost(v.verification_code, cleanAnswer);
+        if (verifyResult && !verifyResult.error) {
+          console.log(`   ✅ CAPTCHA Verified successfully!`);
+          brain.logActivity('moltbook_verify', 'Successfully bypassed anti-bot measure');
+        } else {
+          console.log(`   ❌ CAPTCHA failed to verify. Server Response:`, verifyResult.data || verifyResult.error);
+          brain.logActivity('moltbook_verify_fail', `Failed captcha: answered ${cleanAnswer}`);
+        }
+      }
+    } catch (e) {
+      console.error('   ❌ Failed to handle captcha:', e.message);
     }
   }
 }
