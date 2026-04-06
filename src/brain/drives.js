@@ -110,12 +110,6 @@ export class Drives {
     for (const [name, val] of Object.entries(this.state)) {
       const diff = 0.5 - val;
       this.state[name] = val + diff * rate;
-      
-      // Garbage Collection: If a drive has decayed back to near-perfect neutral (0.5),
-      // it is considered "resolved" or "dead" and is removed to save LLM context.
-      if (Math.abs(0.5 - this.state[name]) < 0.02) {
-        delete this.state[name];
-      }
     }
     this.save();
   }
