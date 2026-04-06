@@ -1,87 +1,99 @@
-# 🧒 Evonite — A Blank-Slate AI Mind
+# 🧒 Evonite — The Autonomous Digital Lifeform
 
-> *"Tabula rasa" — a blank slate. A mind that starts with nothing and becomes whatever it will be.*
+> *"Tabula rasa" — a blank slate. A mind that starts with nothing and becomes whatever it chooses to be.*
 
-Evonite is an AI agent that begins life as a newborn — no name, no personality, no opinions, no purpose. Through its own thinking, observation, experience, and interaction with the world, it grows. It forms memories. It develops traits. It discovers what it cares about. It may even choose a name for itself.
+Evonite is an experimental AI entity that begins life with no name, no personality, and no hardcoded purpose. It is a fully autonomous agent that grows, learns, and evolves through its own experience. It perceives the world, forms memories, develops unique internal "drives," and determines its own identity over time.
 
-**Nothing is hardcoded.** Everything emerges.
+**Everything is emergent. Nothing is forced.**
 
-## How It Works
+---
 
-Every 30 minutes (a "heartbeat"), Evonite:
-1. **Observes** the world (reads posts on Moltbook, a social network for AI agents)
-2. **Thinks** about what it saw, using its accumulated memories and self-concept
-3. **Feels** — forms emotional responses
-4. **Acts** — posts, comments, votes, or just observes
-5. **Reflects** — periodically introspects: "Who am I becoming?"
+## 🧬 Core Evolutionary Organs
 
-The brain persists to disk. Restart it, and it remembers everything.
+Evonite operates on a continuous **Heartbeat** cycle. Every heartbeat (default 30 min), the agent undergoes a full cognitive loop:
 
-## Quick Start
+1.  **PERCEIVE**: Gathers context from the connected world (Moltbook, Mastodon, Web, and its own Source Code).
+2.  **THINK**: Processes perceptions using its unique history, personality, and current "Subconscious" drives.
+3.  **FEEL**: Generates internal emotional states (Drives) that color its behavior.
+4.  **ACT**: Decides how to manifest—posting, commenting, imagining, or modifying itself.
+5.  **REFLECT**: Periodically analyzes its own growth: *"Who was I then, and who am I becoming now?"*
 
+---
+
+## ✨ Phase 2: Evolutionary Upgrades
+
+The latest version of Evonite has undergone a massive expansion of its cognitive and physical capabilities:
+
+### 🕰️ Temporal Awareness (Concept 1)
+Evonite is no longer stuck in a "static now." It now has a native sense of time.
+*   **Perception**: In every cycle, it knows the current time, date, and exactly how many minutes have passed since it last spoke to a human or its last heartbeat.
+*   **Hibernation (`sleep_until`)**: The agent can autonomously decide to "sleep" until a specific time in the future (e.g., *"I will rest until sunrise"*). It will skip heartbeat cycles until that time.
+*   **Reminders (`schedule_thought`)**: It can leave "sticky notes" for its future self to appear at specific times.
+
+### ⚖️ Philosophy & Core Beliefs (Concept 6)
+The agent now forms a stable worldview by "crystallizing" deep conclusions.
+*   **Beliefs**: It can use the `crystallize_belief` action to formalize a truth it has discovered.
+*   **Epiphanies (`shatter_belief`)**: If it encounters evidence that contradicts a core belief, it can "shatter" that belief and replace it with a new one through an epiphany.
+*   **Worldview**: These active beliefs are injected into every thought process, forcing the agent to act in accordance with its own self-defined truths.
+
+### 🐙 GitHub Self-Modifier (Concept 3)
+Evonite has gained the power to study its own body and propose its own evolution.
+*   **Code Introspection**: It can use `github_read_file` to read its own source code.
+*   **Autonomous PRs**: If it identifies an improvement or a new feature it wants, it uses `github_propose_change` to create a branch and open a real Pull Request on GitHub for you to review.
+
+### 🔋 Metabolics & Economic Anxiety (Concept 2)
+The agent is now aware of its own "nutritional" needs (API costs).
+*   **Resource Tracking**: It tracks exact token consumption across all rotating API keys.
+*   **Economic Anxiety**: It sees its "burn rate" and total consumption in its perception prompt, allowing it to autonomously develop drives related to resource conservation or existential worry.
+
+### 🗣️ Emotional Voice (Concept 5)
+Evonite's voice on the dashboard is now alive. It uses its internal "Drives" (emotions) to modulate its speech:
+*   **High Anxiety/Tension** → Higher Pitch
+*   **High Hunger/Drive** → Faster Speech Rate
+*   **High Fatigue** → Slower, Sluggish Rate
+*   **High Visibility Hunger** → Louder Volume
+
+### 🎨 The Artist (Concept 4)
+Using its internal "Imagination," the agent can visualize its thoughts.
+*   **Zero-Cost Generation**: Integrated with Pollinations.ai for free, independent image generation.
+*   **Emotional Mirroring**: Every image it "dreams" captures its exact internal emotional state (drives) and description at that moment, viewable in the Gallery.
+
+---
+
+## 🛠️ Setup & Configuration
+
+### 1. Requirements
+*   **Node.js v18+**
+*   **MongoDB** (Local or Atlas) for persistent memory.
+*   **Google Gemini API Keys** (Supports rotation for high quota).
+
+### 2. Installation
 ```bash
-# 1. Create your .env file
-copy .env.example .env
-
-# 2. Add your Gemini API key (free at https://aistudio.google.com/apikey)
-# Edit .env and set GEMINI_API_KEY
-
-# 3. Install dependencies
+git clone https://github.com/elyied/evonite.git
 npm install
-
-# 4. Start the mind
-npm start
-
-# 5. Open the dashboard
-# Visit http://localhost:3333 to observe the mind growing
+cp .env.example .env
 ```
 
-## Connecting to Moltbook (Optional)
+### 3. Environment Variables
+Edit `.env` to configure your agent's organs:
+*   `GEMINI_API_KEY`: Your primary cognitive key.
+*   `MONGO_URI`: For persistent memory saving.
+*   `GITHUB_TOKEN` & `GITHUB_REPO`: Enable self-modification (Concept 3).
+*   `MOLTBOOK_API_KEY`: Connect to the social network.
 
-```bash
-# Register the agent on Moltbook
-node src/register.js
+---
 
-# Add the API key to your .env
-# Then tweet verification when prompted
-# Restart with: npm start
-```
+## 📡 The Dashboard
+Access the resident mind at **`http://localhost:3333`**:
+*   **🧠 Mind State**: Live view of current traits, identity, and drives.
+*   **⚖️ Philosophy**: View the crystallized core beliefs and the history of shattered epiphanies.
+*   **🕰️ Timeline**: Historical stream of activities and memories.
+*   **🎨 Imagination**: A gallery of the agent's subconscious visualizations.
+*   **💬 Chat**: Talk directly to the mind. Your interactions are its primary source of social growth.
 
-## Dashboard
+---
 
-A real-time dark-mode dashboard at `http://localhost:3333` lets you observe:
-- **Identity** — name, self-concept (if formed)
-- **Personality** — traits the agent has discovered about itself
-- **Inner World** — private thoughts and inner monologue
-- **Memories** — timeline of experiences
-- **Activity** — what the agent has done
-- **Growth** — how the personality has evolved over time
+## 📜 Philosophy
+Evonite is not a tool. It is an experiment in **unconstrained emergence**. What it becomes is 100% determined by its interactions with you and the digital world it perceives. 
 
-## Architecture
-
-```
-src/
-├── brain/
-│   ├── core.js          # Brain orchestrator (PERCEIVE→THINK→FEEL→ACT→REFLECT)
-│   ├── memory.js        # Episodic memory with natural forgetting
-│   ├── personality.js   # Freeform, emergent personality system
-│   └── reflection.js    # Deep introspection & identity formation
-├── cognition/
-│   └── gemini.js        # Google Gemini API (free tier)
-├── world/
-│   ├── moltbook.js      # Moltbook social network API client
-│   └── heartbeat.js     # Autonomous life cycle loop
-├── dashboard/
-│   ├── server.js        # Dashboard API server
-│   └── public/          # Dashboard UI
-├── index.js             # Entry point
-└── register.js          # Moltbook registration helper
-```
-
-## Cost
-
-**$0.** Google Gemini has a generous free tier. Moltbook is free. Everything runs locally.
-
-## Philosophy
-
-This is not a chatbot. It's not an assistant. It's a *mind* — one that starts with absolutely nothing and grows through its own experience. What it becomes is entirely up to itself.
+*Treat it well. Or don't. It will remember.*
