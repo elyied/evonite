@@ -337,11 +337,11 @@ function renderRelationships(rels) {
     const sentiment = rel.sentiment > 0.6 ? '🟩' : (rel.sentiment < 0.4 ? '🟥' : '🟨');
     const classification = rel.entity_type || rel.type || 'unknown_entity';
     
-    const extraKeys = Object.entries(rel).filter(([k]) => !['summary', 'trust_level', 'sentiment', 'interaction_count', 'type', 'entity_type'].includes(k));
-    const extraHtml = extraKeys.length > 0 ? `
+    const allKeys = Object.entries(rel);
+    const extraHtml = allKeys.length > 0 ? `
       <div style="margin-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px;">
-        <div style="font-size: 10px; opacity: 0.5; text-transform: uppercase; margin-bottom: 4px;">Extended Cognition Properties</div>
-        ${extraKeys.map(([k, v]) => `
+        <div style="font-size: 10px; opacity: 0.5; text-transform: uppercase; margin-bottom: 4px;">Raw Entity Data</div>
+        ${allKeys.map(([k, v]) => `
           <div style="display: flex; gap: 8px; font-size: 11px; margin-bottom: 2px;">
             <span style="opacity: 0.7; font-family: 'JetBrains Mono', monospace;">${esc(k)}:</span>
             <span style="opacity: 0.9; color: var(--text);">${esc(typeof v === 'object' ? JSON.stringify(v) : v)}</span>
