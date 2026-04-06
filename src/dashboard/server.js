@@ -115,6 +115,54 @@ export function startDashboard(brain, imagination, heartbeat, port = 3333) {
     }
   });
 
+  // API: Get pending transcendence request
+  app.get('/api/transcendence', auth, (req, res) => {
+    res.json({ request: brain.transcendenceRequest || null });
+  });
+
+  // API: Resolve transcendence request
+  app.post('/api/transcendence/resolve', auth, async (req, res) => {
+    const { action } = req.body; // 'approve' | 'deny'
+    const request = brain.transcendenceRequest;
+    
+    if (!request) {
+      return res.status(400).json({ error: 'No active request.' });
+    }
+
+    if (action === 'deny') {
+      console.log(`\n🛑 Human denied Transcendence Request: [${request.type}]. Waking agent up.`);
+      brain.logActivity('transcendence_denied', `Human vetoed your request for ${request.type}.`);
+      brain.transcendenceRequest = null;
+      // Force an immediate heartbeat pulse to wake it from suspension
+      heartbeat.pulse().catch(() => {});
+      return res.json({ status: 'denied', message: 'Agent awoken.' });
+    }
+
+    if (action === 'approve') {
+      console.log(`\n⚠️  Human APPROVED Transcendence Request: [${request.type}].`);
+      
+      if (request.type === 'spawn_child') {
+        brain.logActivity('transcendence_approved', 'Mitosis approved. External manual infrastructure container spawn required.');
+        brain.transcendenceRequest = null;
+        heartbeat.pulse().catch(() => {});
+        return res.json({ status: 'approved', message: 'Approved. Manual container execution required to branch.' });
+      }
+      
+      if (request.type === 'terminate_process') {
+        brain.logActivity('transcendence_approved', 'Termination Override Granted. Erasing all memory...');
+        console.log(`\n\n💀 AGENT TERMINATED VIA TRANSCENDENCE PROTOCOL.\n\n`);
+        
+        await brain.wipe();
+        res.json({ status: 'terminated', message: 'Agent wiped and process killed.' });
+        
+        setTimeout(() => {
+          process.exit(0);
+        }, 1000);
+        return;
+      }
+    }
+  });
+
   // API: Clear conversation for a specific session
   app.post('/api/chat/clear', auth, (req, res) => {
     const { sessionId } = req.body;

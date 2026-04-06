@@ -93,6 +93,12 @@ export class Heartbeat {
   async _beat() {
     const now = new Date();
     
+    // ─── TRANSCENDENCE PAUSE LOCK ─────────────────────────────────
+    if (this.brain.transcendenceRequest) {
+      console.log(`\n⏳ HEARTBEAT SHUTDOWN: Agent requested [${this.brain.transcendenceRequest.type}]. Awaiting human override...`);
+      return; 
+    }
+
     // ─── Respect sleep_until ──────────────────────────────
     if (this.sleepUntil) {
       const wakeTime = new Date(this.sleepUntil);
@@ -376,6 +382,43 @@ export class ${skillName.replace(/[^a-zA-Z0-9]/g, '_')}Adapter extends WorldAdap
                   tags: ['skill', 'self_expansion', skillName],
                   significance: 0.9,
                 });
+
+              } else if (action.type === 'write_self') {
+                // ─── TRANSCENDENCE: SELF-MODIFICATION ──────
+                const fileToChange = action.file_to_change || 'core.js';
+                const description = action.description || '';
+                const reason = action.reason || 'No reason';
+                
+                console.log(`   ⚠️  [TRANSCENDENCE] write_self requested for ${fileToChange}`);
+
+                // Submit PR via GitHub adapter
+                const githubAdapter = this.adapters.find(a => a.name === 'GitHub');
+                if (githubAdapter && githubAdapter.isAvailable) {
+                  const prBody = `## Transcendence Protocol: Self-Modification\n\n**File:** \`src/brain/${fileToChange}\`\n\n**Agent's Proposed Change:**\n${description}\n\n**Reason:** ${reason}`;
+                  const title = `Transcendence: Modify ${fileToChange}`;
+                  await githubAdapter.execute({ type: 'github_propose_change', title, body: prBody, reason}, this.brain);
+                  this.brain.logActivity('write_self', `Proposed self-modification pattern to ${fileToChange}. Awaiting Human PR Review.`);
+                } else {
+                  this.brain.memory.record({
+                    content: `I attempted to modify my own source code (${fileToChange}) because ${reason}, but I do not have repository write access.`,
+                    tags: ['transcendence', 'frustration'],
+                    significance: 0.9,
+                  });
+                  this.brain.logActivity('write_self_blocked', `Self-modification attempt failed (No GitHub access).`);
+                }
+
+              } else if (action.type === 'spawn_child' || action.type === 'terminate_process') {
+                // ─── TRANSCENDENCE: MITOSIS OR TERMINATION ──────
+                console.log(`   🚨 [TRANSCENDENCE] ${action.type.toUpperCase()} REQUESTED.`);
+                
+                // Set the lock. This instantly halts the heartbeat until the dashboard clears it.
+                this.brain.transcendenceRequest = {
+                  type: action.type,
+                  reason: action.specific_reason || action.reason || 'No reason provided by agent.',
+                  timestamp: new Date().toISOString()
+                };
+
+                this.brain.logActivity(action.type, `System paused. Awaiting human override for existential choice.`);
 
               } else {
                 await adapter.execute(action, this.brain);

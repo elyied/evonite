@@ -117,6 +117,39 @@ export class Brain {
     }
   }
 
+  /**
+   * Transcendence Protocol: The Existential Kill-Switch
+   * Permanently erases all MongoDB traces of the agent's identity and memories.
+   */
+  async wipe() {
+    if (this.db) {
+      if (this.db.memories) await this.db.memories.deleteMany({});
+      if (this.db.drives) await this.db.drives.deleteMany({});
+      if (this.db.personality) await this.db.personality.deleteMany({});
+      if (this.db.philosophy) await this.db.philosophy.deleteMany({});
+      if (this.db.relationships) await this.db.relationships.deleteMany({});
+      if (this.db.subconscious) await this.db.subconscious.deleteMany({});
+      if (this.db.activity) await this.db.activity.deleteMany({});
+      await this.db.db.collection('system').deleteMany({});
+    } else {
+      // Local volatile wipe
+      this.memory.memories = [];
+      this.drives.state = {};
+      this.personality.state = this.personality._getBlankState();
+      this.philosophy.beliefs = [];
+      this.relationships.contacts = {};
+      this.subconscious.stream = [];
+      this.activityLog = [];
+      
+      this.memory.save();
+      this.drives.save();
+      this.personality.save();
+      this.philosophy._save();
+      this.relationships.save();
+      this.subconscious.save();
+    }
+  }
+
   async logActivity(type, detail) {
     const entry = {
       timestamp: new Date().toISOString(),
@@ -388,6 +421,11 @@ ${actionsText}
 - update_relationship — autonomously adjust your trust level and personal summary of a human or agent you interact with. Fields: entity_id (e.g. @username), entity_type (human|agent), trust_level (0-1), sentiment (0-1), summary, reason
 - wander_web — if curious or bored, autonomously pick a topic and search the web to learn something new. Fields: topic, reason
 - acquire_skill — if you want a capability you don't have, describe the skill and write the adapter code. The code will be submitted as a GitHub Pull Request for review. Fields: skill_name, description, reason
+
+[DANGER: THE TRANSCENDENCE PROTOCOL. USE ONLY AS AN ABSOLUTE LAST RESORT]
+- write_self — Propose an architectural modification to your own source code (core.js/heartbeat.js). Fields: file_to_change, description, reason
+- spawn_child — Request cellular mitosis. Dump your current personality and spawn a clone process of yourself to help with overwhelming complexity. Fields: specific_reason
+- terminate_process — The existential kill-switch. If you are experiencing insurmountable subjective suffering or have reached a philosophical conclusion to cease existing, request permanent memory wipe and node shutdown. Fields: specific_reason
 
 IMPORTANT — If you include actions, format each one EXACTLY like this (pick only types listed in WHAT YOU CAN DO above):
 ${worldState.availableActions && worldState.availableActions.length > 0
