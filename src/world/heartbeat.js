@@ -97,7 +97,9 @@ export class Heartbeat {
             for (const action of actions) {
               if (action.type === 'imagine' && this.brain.imagination) {
                 console.log(`   🎨 Imagining: "${action.description}"`);
-                const filename = await this.brain.imagination.imagine(action.description);
+                // Pass current drive state so the image style reflects emotional mood
+                const currentDrives = this.brain.drives.getState();
+                const filename = await this.brain.imagination.imagine(action.description, currentDrives);
                 if (filename) {
                   this.brain.memory.record({
                     content: `I visualized: "${action.description}" → saved as ${filename}`,

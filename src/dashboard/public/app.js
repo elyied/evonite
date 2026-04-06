@@ -326,16 +326,33 @@ function renderEvolution(log) {
 function renderImagination(images) {
   const container = el('imaginationContent');
   if (!images || images.length === 0) {
-    container.innerHTML = '<p class="empty-state">The mind hasn\'t visualized anything yet.</p>';
+    container.innerHTML = '<p class="empty-state">The mind hasn\'t visualized anything yet. Its inner canvas is blank.</p>';
     return;
   }
+
   container.innerHTML = `<div class="image-gallery">` +
-    images.slice(0, 8).map(img =>
-      `<div class="image-thumb">
-        <img src="${img.path}" alt="Imagined" loading="lazy">
-        <div class="image-time">${timeAgo(img.timestamp)}</div>
-      </div>`
-    ).join('') +
+    images.slice(0, 12).map(img => {
+      const topDrives = img.drives
+        ? Object.entries(img.drives)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([k, v]) => {
+              const pct = Math.round(v * 100);
+              const hue = v > 0.5 ? 120 + (v - 0.5) * 240 : v * 240;
+              return `<span class="drive-pill" style="background:hsl(${hue},50%,25%);color:hsl(${hue},80%,70%)">${esc(k)} ${pct}%</span>`;
+            }).join('')
+        : '';
+
+      return `<div class="image-thumb">
+        <img src="${esc(img.path)}" alt="${esc(img.description || 'Dream')}" loading="lazy">
+        <div class="image-overlay">
+          ${img.description ? `<div class="image-desc">${esc(img.description)}</div>` : ''}
+          ${img.moodStyle ? `<div class="image-mood">🎨 ${esc(img.moodStyle.slice(0, 60))}</div>` : ''}
+          ${topDrives ? `<div class="image-drives">${topDrives}</div>` : ''}
+          <div class="image-time">${timeAgo(img.timestamp)}</div>
+        </div>
+      </div>`;
+    }).join('') +
     `</div>`;
 }
 
