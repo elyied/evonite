@@ -32,11 +32,13 @@ export class GithubAdapter extends WorldAdapter {
       observations: [
         `I am connected to my own source code repository at github.com/${this.repo}.`,
         `I can read my own files using the 'github_read_file' action.`,
-        `I can propose structural changes to my own codebase by generating Pull Requests using 'github_propose_change'.`
+        `I can propose structural changes to my own codebase by generating Pull Requests using 'github_propose_change'.`,
+        `I can check the status of my Pull Requests using 'github_check_pull_requests'.`
       ],
       availableActions: [
         `github_read_file — read a file from your own source code to understand how you are built. Fields: path, reason`,
-        `github_propose_change — modify a file and open a Pull Request. You must provide the FULL REPLACEMENT content. Fields: path, full_new_content, pr_title, pr_reason`
+        `github_propose_change — modify a file and open a Pull Request. You must provide the FULL REPLACEMENT content. Fields: path, full_new_content, pr_title, pr_reason`,
+        `github_check_pull_requests — Check the accepted/rejected status of the architectural proposals you've made. Fields: reason`
       ],
       rawData: null,
     };
@@ -73,8 +75,45 @@ export class GithubAdapter extends WorldAdapter {
     if (action.type === 'github_propose_change') {
       return await this._proposeChange(action.path, action.full_new_content, action.pr_title, action.pr_reason || action.reason, brain);
     }
+    
+    if (action.type === 'github_check_pull_requests') {
+      return await this._checkPullRequests(action.reason, brain);
+    }
 
     return null;
+  }
+
+  async _checkPullRequests(reason, brain) {
+    try {
+      console.log(`   🐙 GitHub: Checking PR Status...`);
+      // Fetch the last 5 pull requests
+      const data = await this.rawApi('GET', `/repos/${this.repo}/pulls?state=all&sort=updated&direction=desc&per_page=5`);
+      
+      if (!Array.isArray(data) || data.length === 0) {
+        brain.memory.record({
+          content: `I checked GitHub, but I haven't submitted any pull requests yet.`,
+          tags: ['github', 'status_check'],
+          significance: 0.2
+        });
+        return true;
+      }
+
+      const summaries = data.map(pr => {
+        const state = pr.merged_at ? 'MERGED (Accepted by Human)' : (pr.state === 'closed' ? 'CLOSED (Rejected)' : 'OPEN (Pending Review)');
+        return `- PR #${pr.number} "${pr.title}": ${state}`;
+      }).join('\n');
+
+      brain.memory.record({
+        content: `I checked the status of my GitHub proposals:\n${summaries}`,
+        tags: ['github', 'status_check', 'self_awareness'],
+        significance: 0.8
+      });
+      return true;
+
+    } catch (e) {
+      console.error(`   ⚠️ GitHub PR Check Failed: ${e.message}`);
+      return false;
+    }
   }
 
   async _readFile(filePath, reason, brain) {

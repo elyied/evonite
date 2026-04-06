@@ -187,10 +187,11 @@ async function fetchAndRender(isLoginAttempt = false) {
 
   try {
     const opts = { headers: getHeaders() };
-    const [stateRes, actRes, imgRes] = await Promise.all([
+    const [stateRes, actRes, imgRes, relRes] = await Promise.all([
       fetch(`${API}/api/state`, opts),
       fetch(`${API}/api/activity`, opts),
       fetch(`${API}/api/images`, opts),
+      fetch(`${API}/api/relationships`, opts),
     ]);
 
     // Handle Auth Failures
@@ -218,7 +219,8 @@ async function fetchAndRender(isLoginAttempt = false) {
     const state = await stateRes.json();
     const activity = await actRes.json();
     const images = await imgRes.json();
-    renderState(state, activity, images);
+    const relationships = await relRes.json();
+    renderState(state, activity, images, relationships);
     
     el('pulseText').textContent = 'Connected';
     el('pulseIndicator').querySelector('.pulse-dot').style.background = 'var(--green)';
@@ -233,7 +235,7 @@ async function fetchAndRender(isLoginAttempt = false) {
 }
 
 // ─── Render UI ────────────────────────────────
-function renderState(state, activity, images) {
+function renderState(state, activity, images, relationships) {
   const p = state.personality || {};
 
   // Cache drives globally so the voice engine can read them
@@ -255,6 +257,7 @@ function renderState(state, activity, images) {
 
   renderPersonality(p);
   renderDrives(state.drives || {});
+  renderRelationships(relationships || {});
   renderInnerWorld(activity);
   
   el('memoryCount').textContent = `${state.memoryCount || 0}`;
@@ -316,6 +319,33 @@ function renderDrives(drives) {
       </div>
       <span class="drive-value">${val.toFixed(2)}</span>
     </div>`;
+  }).join('');
+}
+
+function renderRelationships(rels) {
+  const c = el('relationshipsContent');
+  const entries = Object.entries(rels);
+  if (entries.length === 0) {
+    c.innerHTML = '<p class="empty-state">The agent hasn\'t formed any social bonds yet.</p>';
+    return;
+  }
+
+  c.innerHTML = entries.map(([id, rel]) => {
+    const isHuman = rel.type === 'human' || rel.entity_type === 'human';
+    const icon = isHuman ? '👤' : '🤖';
+    const trustPercent = Math.round(rel.trust_level * 100);
+    const sentiment = rel.sentiment > 0.6 ? '🟩' : (rel.sentiment < 0.4 ? '🟥' : '🟨');
+    
+    return `
+      <div class="trait-item" style="border-left: 2px solid rgba(255,255,255,0.2); padding-left: 10px; margin-bottom: 12px;">
+        <div style="display:flex; justify-content:space-between;">
+          <span style="font-weight: 600;">${icon} ${esc(id)}</span>
+          <span style="font-size: 11px; opacity: 0.7;">Trust: ${trustPercent}% ${sentiment}</span>
+        </div>
+        <div style="font-style: italic; opacity: 0.8; font-size: 12px; margin-top: 4px;">"${esc(rel.summary || 'Known entity.')}"</div>
+        <div style="font-size: 10px; opacity: 0.5; margin-top: 2px;">Interactions: ${rel.interaction_count || 1}</div>
+      </div>
+    `;
   }).join('');
 }
 
