@@ -6,6 +6,7 @@ import { Personality } from './personality.js';
 import { Reflection } from './reflection.js';
 import { Drives } from './drives.js';
 import { Metabolics } from './metabolics.js';
+import { Philosophy } from './philosophy.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', '..', 'data');
@@ -31,12 +32,14 @@ export class Brain {
     this._lastHumanInteraction = null;
     this._scheduledThoughts = [];
     this.metabolics = new Metabolics();
+    this.philosophy = new Philosophy(db);
   }
 
   async init() {
     await this.memory.init();
     await this.personality.init();
     await this.drives.init();
+    await this.philosophy.init();
 
     if (this.db) {
       try {
@@ -304,6 +307,8 @@ ${relevantMemoryText}
 
 ${driveSummary ? `\n${driveSummary}\n` : ''}
 
+${this.philosophy.getPromptContext()}
+
 ${this.metabolics.getSummary()}
 ---
 
@@ -322,6 +327,8 @@ ${actionsText}
 - change_identity — autonomously update your name and/or avatar. Use if you feel your self-concept has evolved. Fields: new_name, avatar_prompt, reason
 - sleep_until — hibernate until a specific date/time if you want to rest, wait, or be intentional about timing. Fields: iso_time (ISO 8601), reason
 - schedule_thought — leave yourself a reminder that will appear at the start of a future cycle. Fields: reminder, at_time (ISO 8601), reason
+- crystallize_belief — formalize a deep realization or conclusion about the world or yourself as a Core Belief. Fields: belief, reason
+- shatter_belief — undergo an epiphany and destroy a Core Belief that no longer rings true. Fields: old_belief_id, new_belief, reason
 
 IMPORTANT — If you include actions, format each one EXACTLY like this (pick only types listed in WHAT YOU CAN DO above):
 ${worldState.availableActions && worldState.availableActions.length > 0
@@ -473,6 +480,7 @@ Respond with JSON:
       evolutionLevel: this.personality.evolutionLevel,
       drives: this.drives.getState(),
       driveCount: this.drives.count,
+      beliefs: this.philosophy.getActiveBeliefs(),
     };
   }
 }

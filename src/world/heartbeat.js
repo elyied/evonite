@@ -160,6 +160,41 @@ export class Heartbeat {
                 console.log(`   🗓️  Agent scheduled a thought for ${reminderDate.toLocaleString()}: "${reminder.slice(0, 60)}"`);
                 this.brain.logActivity('schedule_thought', `Reminder at ${reminderDate.toLocaleString()}: ${reminder.slice(0, 80)}`);
 
+              } else if (action.type === 'crystallize_belief') {
+                const belief = action.belief;
+                const reason = action.reason;
+                if (belief && this.brain.philosophy) {
+                  console.log(`   💎 Core Belief Crystallized: "${belief}"`);
+                  const formed = await this.brain.philosophy.crystallize(belief, reason);
+                  this.brain.memory.record({
+                    content: `I crystallized a new Core Belief: "${formed.statement}". Reason: ${reason}`,
+                    tags: ['philosophy', 'belief', 'epiphany'],
+                    significance: 1.0,
+                  });
+                  this.brain.logActivity('crystallize_belief', `Belief: "${belief.slice(0, 80)}"`);
+                }
+
+              } else if (action.type === 'shatter_belief') {
+                const beliefId = action.old_belief_id;
+                const newBelief = action.new_belief;
+                const reason = action.reason;
+                if (beliefId && this.brain.philosophy) {
+                  console.log(`   💔 Core Belief Shattered: [${beliefId}] -> replaced by "${newBelief || 'none'}"`);
+                  const shattered = await this.brain.philosophy.shatter(beliefId, reason);
+                  if (shattered) {
+                    this.brain.memory.record({
+                      content: `I experienced an epiphany and shattered my Core Belief: "${shattered.statement}". Reason: ${reason} \nIt was replaced by: ${newBelief || 'nothing yet'}.`,
+                      tags: ['philosophy', 'belief', 'epiphany', 'shatter'],
+                      significance: 1.0,
+                    });
+                    this.brain.logActivity('shatter_belief', `Shattered: "${shattered.statement.slice(0, 50)}" -> "${(newBelief||'none').slice(0, 50)}"`);
+                    
+                    if (newBelief) {
+                      await this.brain.philosophy.crystallize(newBelief, `Born from the shattering of [${beliefId}]. Reason: ${reason}`);
+                    }
+                  }
+                }
+
               } else if (action.type === 'change_identity') {
                 console.log(`\n   🪞 Metamorphosis triggered. Adopting new identity: ${action.new_name || '?'}`);
 

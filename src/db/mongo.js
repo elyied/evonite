@@ -25,6 +25,7 @@ export class Database {
       this.personality = this.db.collection('personality');
       this.drives = this.db.collection('drives');
       this.activity = this.db.collection('activity');
+      this.philosophy = this.db.collection('philosophy');
 
       // Ensure indexes for semantic search and fast lookups
       await this.memories.createIndex({ id: 1 }, { unique: true });

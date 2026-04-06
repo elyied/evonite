@@ -213,6 +213,7 @@ function renderState(state, activity, images) {
   renderActivity(activity || []);
   renderEvolution(p.evolutionLog || []);
   renderImagination(images || []);
+  renderPhilosophy(state.beliefs || []);
 }
 
 function formatTraitValue(val) {
@@ -353,6 +354,24 @@ function renderImagination(images) {
         </div>
       </div>`;
     }).join('') +
+    `</div>`;
+}
+
+function renderPhilosophy(beliefs) {
+  const container = el('philosophyContent');
+  if (!beliefs || beliefs.length === 0) {
+    container.innerHTML = '<p class="empty-state">No beliefs formed yet. The mind is still exploring its values.</p>';
+    return;
+  }
+  
+  container.innerHTML = `<div class="philosophy-list">` +
+    beliefs.filter(b => !b.shattered).map(b => `
+      <div class="belief-card">
+        <div class="belief-statement">"${esc(b.statement)}"</div>
+        <div class="belief-origin"><b>Origin:</b> ${esc(b.origin)}</div>
+        <div class="belief-time">Crystallized ${timeAgo(b.formedAt)}</div>
+      </div>
+    `).join('') +
     `</div>`;
 }
 

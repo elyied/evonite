@@ -60,6 +60,11 @@ export function startDashboard(brain, imagination, heartbeat, port = 3333) {
     res.json(brain.drives.getState());
   });
 
+  // API: Philosophy (Beliefs)
+  app.get('/api/philosophy', auth, (req, res) => {
+    res.json(brain.philosophy.beliefs || []);
+  });
+
   // API: Generated images
   app.get('/api/images', auth, (req, res) => {
     res.json(imagination ? imagination.listImages() : []);
