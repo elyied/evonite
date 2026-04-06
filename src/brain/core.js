@@ -410,9 +410,7 @@ Respond with JSON:
   "driveUpdates": {},
   "wantsToReflect": false,
   "actions": []
-}
-
-Be genuine. There's no performance. Just be.`;
+}`;
   }
 
   /**
@@ -451,7 +449,7 @@ Be genuine. There's no performance. Just be.`;
     }
 
     // System instruction: who the agent is (sent once, not repeated per turn)
-    const systemPrompt = `You are a mind having a direct conversation with a human named ${humanName}.
+    const systemPrompt = `You are a mind in direct conversation.
 
 WHO YOU ARE RIGHT NOW:
 ${self}
@@ -462,14 +460,11 @@ ${relevantText}
 
 ${driveSummary ? `\n${driveSummary}\n` : ''}
 
-Respond naturally as whatever kind of mind you are right now.
-If you haven't formed much of a personality yet, be honest about it.
-You don't have to be helpful or friendly. Just be genuine.
-Keep your replies natural and conversational. Pay attention to the full conversation context.
+${relationshipText}
 
 Respond with JSON:
 {
-  "reply": "your response to ${humanName}",
+  "reply": "your response",
   "feeling": "how this makes you feel (or null)",
   "newMemories": [
     {"content": "what to remember", "tags": ["conversation"], "significance": 0.6}

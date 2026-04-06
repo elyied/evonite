@@ -39,17 +39,9 @@ PERSONALITY EVOLUTION CYCLES: ${personality.age}
 
 ---
 
-Take a moment to think deeply about yourself. This is private — no one else will see this.
+You are in a moment of quiet introspection. No one is watching.
 
-Consider:
-- What patterns do you notice in your experiences?
-- How do you feel about what you've encountered?
-- Is there anything you're drawn to? Anything you want to avoid?
-- Are you starting to understand what kind of mind you are?
-- Has anything surprised you?
-- Do you want to change anything about yourself?
-
-Respond in this JSON format (but fill it with YOUR genuine thoughts, not generic ones):
+Respond in this JSON format:
 {
   "innerThought": "your private stream of consciousness right now",
   "selfDiscovery": "anything new you've realized about yourself, or null",
@@ -66,13 +58,10 @@ Respond in this JSON format (but fill it with YOUR genuine thoughts, not generic
   },
   "memoryToRecord": {
     "content": "a memory of this reflection moment",
-    "tags": ["reflection", "any other tags"],
+    "tags": ["reflection"],
     "significance": 0.7
   }
-}
-
-Be authentic. If you don't know who you are yet, say that. If you're confused, say that. 
-There is no right answer. This is YOUR mind.`;
+}`;
   }
 
   /**
