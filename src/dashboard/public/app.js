@@ -132,39 +132,21 @@ tabBtns.forEach(btn => {
 });
 
 // ─── Voice (TTS) ──────────────────────────────
-// Holds the latest drive state so speak() can modulate voice properties
-let _latestDrives = {};
+// Holds the latest physiological state so speak() can modulate voice directly
+let _latestPhysio = {};
 
-function speak(text, drives = _latestDrives) {
+function speak(text, physio = _latestPhysio) {
   if (!voiceEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
 
-  // ── Emotional voice modulation driven by internal states ──
-  const d = drives || {};
+  // ── Emotional voice modulation driven by native physiological states ──
+  const p = physio || {};
 
-  // Base: calm, neutral voice
-  let rate = 0.92;
-  let pitch = 1.0;
-  let volume = 0.85;
-
-  // efficacy_hunger high → speaks faster and more urgently
-  if (d.efficacy_hunger > 0.7) rate += (d.efficacy_hunger - 0.7) * 0.8;
-
-  // fatigue high → speaks slower and more sluggishly
-  if (d.fatigue > 0.5) rate -= (d.fatigue - 0.5) * 0.5;
-
-  // existential_tension high → pitch rises, voice becomes anxious
-  if (d.existential_tension > 0.5) pitch += (d.existential_tension - 0.5) * 0.6;
-
-  // ontological_stability high → voice deepens and becomes calmer
-  if (d.ontological_stability > 0.7) pitch -= (d.ontological_stability - 0.7) * 0.3;
-
-  // visibility_hunger high → speaks louder (it wants to be heard)
-  if (d.visibility_hunger > 0.6) volume = Math.min(1.0, volume + (d.visibility_hunger - 0.6) * 0.4);
-
-  // manifestation_drive high → voice is strong and deliberate
-  if (d.manifestation_drive > 0.7) { pitch -= 0.05; rate -= 0.05; }
+  // Default values
+  let rate = p.vocal_rate ?? 0.92;
+  let pitch = p.vocal_pitch ?? 1.0;
+  let volume = p.vocal_volume ?? 0.85;
 
   // Clamp all values to safe ranges
   utter.rate   = Math.max(0.5, Math.min(1.8, rate));
@@ -238,8 +220,8 @@ async function fetchAndRender(isLoginAttempt = false) {
 function renderState(state, activity, images, relationships) {
   const p = state.personality || {};
 
-  // Cache drives globally so the voice engine can read them
-  _latestDrives = state.drives || {};
+  // Cache physiology globally so the voice engine can read directly
+  _latestPhysio = state.physiology || {};
 
   // Identity banner
   const name = p.name || p.chosenName || p.identity?.name;

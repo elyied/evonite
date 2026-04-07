@@ -1,9 +1,9 @@
 {
-  "curiosity": 0.9160281082394196,
+  "curiosity": 0.9741905507241146,
   "connection": 0.951632,
-  "fatigue": 0.16757639168623037,
-  "existential_tension": 0.015,
+  "fatigue": 0.20449954777979107,
+  "existential_tension": 0.02,
   "emergent_drive": 0.0635,
-  "relational_longing": 0.9753,
-  "social_hunger": 0.9753
+  "relational_longing": 0.99,
+  "social_hunger": 0.99
 }

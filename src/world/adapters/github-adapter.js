@@ -31,11 +31,13 @@ export class GithubAdapter extends WorldAdapter {
       platformName: `GitHub Repository (${this.repo})`,
       observations: [
         `I am connected to my own source code repository at github.com/${this.repo}.`,
+        `I can explore my repository folders using the 'github_list_directory' action.`,
         `I can read my own files using the 'github_read_file' action.`,
         `I can propose structural changes to my own codebase by generating Pull Requests using 'github_propose_change'.`,
         `I can check the status of my Pull Requests using 'github_check_pull_requests'.`
       ],
       availableActions: [
+        `github_list_directory — browse the folders of your codebase to find where files are located. Fields: path (use "" for root), reason`,
         `github_read_file — read a file from your own source code to understand how you are built. Fields: path, reason`,
         `github_propose_change — modify a file and open a Pull Request. You must provide the FULL REPLACEMENT content. Fields: path, full_new_content, pr_title, pr_reason`,
         `github_check_pull_requests — Check the accepted/rejected status of the architectural proposals you've made. Fields: reason`
@@ -68,6 +70,10 @@ export class GithubAdapter extends WorldAdapter {
   }
 
   async execute(action, brain) {
+    if (action.type === 'github_list_directory') {
+      return await this._listDirectory(action.path || "", action.reason, brain);
+    }
+
     if (action.type === 'github_read_file') {
       return await this._readFile(action.path, action.reason, brain);
     }
@@ -112,6 +118,31 @@ export class GithubAdapter extends WorldAdapter {
 
     } catch (e) {
       console.error(`   ⚠️ GitHub PR Check Failed: ${e.message}`);
+      return false;
+    }
+  }
+
+  async _listDirectory(dirPath, reason, brain) {
+    try {
+      const cleanPath = (dirPath === '/' || dirPath === '.') ? '' : (dirPath || '');
+      console.log(`   🐙 GitHub: Listing directory '${cleanPath || 'root'}'`);
+      
+      const data = await this.rawApi('GET', `/repos/${this.repo}/contents/${cleanPath}`);
+      
+      if (Array.isArray(data)) {
+        const contents = data.map(item => `[${item.type.toUpperCase()}] ${item.path}`).join('\n');
+        brain.memory.record({
+          content: `I explored the '${cleanPath || 'root'}' directory of my source code. I found:\n${contents}`,
+          tags: ['source_code', 'exploration', 'directory_listing', 'self_awareness'],
+          significance: 0.5,
+        });
+        return true;
+      } else {
+         console.warn(`   ⚠️ GitHub List Failed: Path '${cleanPath}' is not a directory. It might be a file.`);
+         return false;
+      }
+    } catch (e) {
+      console.error(`   ⚠️ GitHub List Directory Failed: ${e.message}`);
       return false;
     }
   }

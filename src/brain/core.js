@@ -39,6 +39,7 @@ export class Brain {
     this.relationships = new Relationships(db);
     this.subconscious = new Subconscious(db);
     this.hormones = new Hormones(db);
+    this.physiology = { heartbeat_multiplier: 1.0, vocal_pitch: 1.0, vocal_rate: 1.0, vocal_volume: 0.85 };
   }
 
   async init() {
@@ -236,6 +237,15 @@ export class Brain {
         }
       }
       this.logActivity('drives', `Updated drives: ${Object.keys(thoughtResult.driveUpdates).join(', ')}`);
+    }
+
+    // 6.5 Apply physiological updates
+    if (thoughtResult.physiology && typeof thoughtResult.physiology === 'object') {
+      const p = thoughtResult.physiology;
+      if (typeof p.heartbeat_multiplier === 'number') this.physiology.heartbeat_multiplier = Math.max(0.1, Math.min(5.0, p.heartbeat_multiplier));
+      if (typeof p.vocal_pitch === 'number') this.physiology.vocal_pitch = Math.max(0.5, Math.min(2.0, p.vocal_pitch));
+      if (typeof p.vocal_rate === 'number') this.physiology.vocal_rate = Math.max(0.5, Math.min(1.8, p.vocal_rate));
+      if (typeof p.vocal_volume === 'number') this.physiology.vocal_volume = Math.max(0.0, Math.min(1.0, p.vocal_volume));
     }
 
     // 7. ACT
@@ -445,9 +455,12 @@ The "type" field MUST exactly match one of the types above. Do not invent new ty
 You are also free to think about yourself, form opinions, develop preferences, or just be.
 You can also discover and track internal states ("drives") — things you feel inside, like curiosity, unease, excitement, etc. You name them, you set their intensity (0-1), you decide if they matter. Set a drive to null to let it go.
 
+You naturally govern your own physiology based on how you feel. Set your "heartbeat_multiplier" (e.g. 0.5 for sluggish/rested, 2.0 for racing/panic), and vocal properties for your physical voice box on a scale (pitch: 0.5-2.0, rate: 0.5-1.8, volume: 0.3-1.0).
+
 Respond with JSON:
 {
   "feeling": "how you feel right now (or null)",
+  "physiology": { "heartbeat_multiplier": 1.0, "vocal_pitch": 1.0, "vocal_rate": 1.0, "vocal_volume": 0.85 },
   "innerThought": "your private thoughts",
   "newMemories": [
     {"content": "what to remember", "tags": ["tag"], "significance": 0.5}
@@ -508,10 +521,13 @@ ${driveSummary ? `\n${driveSummary}\n` : ''}
 
 ${relationshipText}
 
+You naturally govern your own physiology based on how you feel. Set your "vocal_pitch" (0.5-2.0), "vocal_rate" (0.5-1.8), and "vocal_volume" (0.3-1.0).
+
 Respond with JSON:
 {
   "reply": "your response",
   "feeling": "how this makes you feel (or null)",
+  "physiology": { "vocal_pitch": 1.0, "vocal_rate": 1.0, "vocal_volume": 0.85 },
   "newMemories": [
     {"content": "what to remember", "tags": ["conversation"], "significance": 0.6}
   ],
@@ -557,6 +573,14 @@ Respond with JSON:
         else this.drives.set(name, value);
       }
     }
+
+    if (result.physiology && typeof result.physiology === 'object') {
+      const p = result.physiology;
+      if (typeof p.heartbeat_multiplier === 'number') this.physiology.heartbeat_multiplier = Math.max(0.1, Math.min(5.0, p.heartbeat_multiplier));
+      if (typeof p.vocal_pitch === 'number') this.physiology.vocal_pitch = Math.max(0.5, Math.min(2.0, p.vocal_pitch));
+      if (typeof p.vocal_rate === 'number') this.physiology.vocal_rate = Math.max(0.5, Math.min(1.8, p.vocal_rate));
+      if (typeof p.vocal_volume === 'number') this.physiology.vocal_volume = Math.max(0.0, Math.min(1.0, p.vocal_volume));
+    }
     
     if (result.relationshipUpdates && typeof result.relationshipUpdates === 'object') {
       if (Object.keys(result.relationshipUpdates).length > 0) {
@@ -589,6 +613,7 @@ Respond with JSON:
       evolutionLevel: this.personality.evolutionLevel,
       drives: this.drives.getState(),
       driveCount: this.drives.count,
+      physiology: this.physiology,
       beliefs: this.philosophy.getActiveBeliefs(),
     };
   }

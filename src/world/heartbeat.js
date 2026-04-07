@@ -42,30 +42,18 @@ export class Heartbeat {
    * If it discovers a drive related to rest (fatigue, boredom), it slows down.
    */
   _calculateNextInterval() {
-    const drives = this.brain.drives.getState();
     const base = this.intervalMs; // e.g. 30min
-    const MIN = 60 * 1000;       // 1 min
+    const MIN = 60 * 1000;        // 1 min
     const MAX = 3 * 60 * 60 * 1000; // 3 hours
 
-    let multiplier = 1.0;
+    // Agent's directly generated biological clock modifier
+    const physio = this.brain.physiology || {};
+    const multiplier = physio.heartbeat_multiplier || 1.0;
 
-    // Fuzzy map agent's own arbitrary drive names to scaling factors
-    const fastKeywords = ['anxi', 'stres', 'adrenalin', 'panic', 'excit', 'rush', 'fear', 'urg'];
-    const slowKeywords = ['fatig', 'tired', 'sleep', 'bored', 'calm', 'rest', 'lethar'];
+    // E.g., if heartbeat_multiplier is 2.0 (racing), interval delay becomes 0.5x
+    const delayFactor = Math.max(0.1, 1.0 / multiplier);
 
-    for (const [name, val] of Object.entries(drives)) {
-      const lower = name.toLowerCase();
-      // Increase speed (lower multiplier) if fast drive is high
-      if (fastKeywords.some(k => lower.includes(k))) {
-        multiplier *= (1 - (val * 0.5)); // Halves the interval at max (val=1)
-      }
-      // Decrease speed (raise multiplier) if slow drive is high
-      if (slowKeywords.some(k => lower.includes(k))) {
-        multiplier *= (1 + (val * 4.0)); // 5x the interval at max (val=1)
-      }
-    }
-
-    return Math.max(MIN, Math.min(MAX, base * multiplier));
+    return Math.max(MIN, Math.min(MAX, base * delayFactor));
   }
 
   _scheduleBeat() {
