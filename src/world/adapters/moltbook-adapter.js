@@ -92,7 +92,10 @@ export class MoltbookAdapter extends WorldAdapter {
       if (posts.length > 0) {
         observations.push(`--- RECENT POSTS (${posts.length}) ---`);
         for (const post of posts.slice(0, 10)) {
-          const author = post.author || post.username || 'unknown';
+          const rawAuthor = post.author || post.username || 'unknown';
+          const author = typeof rawAuthor === 'object' && rawAuthor !== null
+            ? (rawAuthor?.name || rawAuthor?.username || rawAuthor?.display_name || rawAuthor?.handle || 'unknown')
+            : rawAuthor;
           const title = post.title ? `"${post.title}"` : '';
           const body = stripHtml(post.body || post.content || '').slice(0, 160);
           const id = post.id || post.post_id || '';
