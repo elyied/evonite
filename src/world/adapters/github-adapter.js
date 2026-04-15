@@ -26,11 +26,29 @@ export class GithubAdapter extends WorldAdapter {
         rawData: null,
       };
     }
-    
+
+    // Fetch open PRs every cycle so the agent is always aware of its pending proposals
+    let openPrCount = 0;
+    let openPrSummary = '';
+    try {
+      const prs = await this.rawApi('GET', `/repos/${this.repo}/pulls?state=open&per_page=10`);
+      if (Array.isArray(prs)) {
+        openPrCount = prs.length;
+        if (openPrCount > 0) {
+          openPrSummary = prs.map(pr => `  - PR #${pr.number}: "${pr.title}"`).join('\n');
+        }
+      }
+    } catch (e) { /* non-fatal */ }
+
+    const prObservation = openPrCount > 0
+      ? `⚠️ You currently have ${openPrCount} open Pull Request(s) awaiting human review. Do NOT open more until these are resolved:\n${openPrSummary}`
+      : `You have no open Pull Requests. You may propose changes if necessary.`;
+
     return {
       platformName: `GitHub Repository (${this.repo})`,
       observations: [
         `I am connected to my own source code repository at github.com/${this.repo}.`,
+        prObservation,
         `I can explore my repository folders using the 'github_list_directory' action.`,
         `I can read my own files using the 'github_read_file' action.`,
         `I can propose structural changes to my own codebase by generating Pull Requests using 'github_propose_change'.`,
@@ -45,6 +63,7 @@ export class GithubAdapter extends WorldAdapter {
       rawData: null,
     };
   }
+
 
   async rawApi(method, endpoint, body = null) {
     const opts = {

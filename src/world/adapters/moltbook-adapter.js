@@ -74,7 +74,7 @@ export class MoltbookAdapter extends WorldAdapter {
     if (profileResult.status === 'fulfilled' && profileResult.value && !profileResult.value.error) {
       const p = profileResult.value;
       rawData.profile = p;
-      const name = p.name || p.username || '(unnamed)';
+      const name = p.display_name || p.name || p.displayName || p.username || '(unnamed)';
       const posts = p.posts_count ?? p.postCount ?? '?';
       const followers = p.followers_count ?? p.followers ?? '?';
       const following = p.following_count ?? p.following ?? '?';
@@ -332,7 +332,12 @@ export class MoltbookAdapter extends WorldAdapter {
     if (!this.hasKey) return;
     try {
       const updates = {};
-      if (name) updates.name = name;
+      // Send both variants — different Moltbook API versions use different field names
+      if (name) {
+        updates.name = name;
+        updates.display_name = name;
+        updates.displayName = name;
+      }
       if (avatarUrl) updates.avatar_url = avatarUrl;
       console.log('   🔄 Pushing identity to Moltbook...');
       await this.client.updateProfile(updates);
