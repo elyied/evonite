@@ -55,6 +55,10 @@ export class Brain {
       try {
         const sys = await this.db.db.collection('system').findOne({ _id: 'stats' });
         this.cycleCount = sys ? sys.cycleCount : this._loadCycleCount();
+        // Restore last human interaction timestamp so the agent remembers
+        if (sys && sys.lastHumanInteraction) {
+          this._lastHumanInteraction = new Date(sys.lastHumanInteraction);
+        }
 
         const logs = await this.db.activity.find({}).sort({ timestamp: -1 }).limit(200).toArray();
         if (logs.length > 0) {
@@ -589,8 +593,17 @@ Respond with JSON:
       }
     }
 
-    // Track when a human last spoke so temporal context is accurate
+    // Track when a human last spoke so temporal context is accurate, and persist it
     this._lastHumanInteraction = new Date();
+    if (this.db) {
+      try {
+        await this.db.db.collection('system').updateOne(
+          { _id: 'stats' },
+          { $set: { lastHumanInteraction: this._lastHumanInteraction.toISOString() } },
+          { upsert: true }
+        );
+      } catch (e) { /* non-fatal */ }
+    }
     this.logActivity('chat', `${humanName}: "${latestMessage.slice(0, 60)}"`);
 
     return {
