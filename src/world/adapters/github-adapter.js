@@ -112,7 +112,7 @@ export class GithubAdapter extends WorldAdapter {
     try {
       console.log(`   🐙 GitHub: Checking PR Status...`);
       // Fetch the last 5 pull requests
-      const data = await this.rawApi('GET', `/repos/${this.repo}/pulls?state=all&sort=updated&direction=desc&per_page=5`);
+      const data = await this.rawApi('GET', `/repos/${this.repo}/pulls?state=all&sort=updated&direction=desc&per_page=28`);
       
       if (!Array.isArray(data) || data.length === 0) {
         brain.memory.record({
